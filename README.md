@@ -1,5 +1,4 @@
-# mathantics
-Mathantics is a set of roblox Luau libraries based in the luau interpreted language used for my incremental game.
+Mathantics is a set of roblox Luau libraries based in the luau interpreted language and used for my incremental game on roblox.
 It includes, Mathantics and it is integrated with nETN (WIP)
 
 Here are the descriptions of both libraries:
@@ -21,7 +20,7 @@ this math module may not be 100% Optimized but it is fast enough for commercial 
 ]]
 ```
 
-a Demo scriptc using Mathantics:
+a Demo scriptc using Mathantics (v1.008 RR) [Using Outdated EternityNum will swtich to nETN after it is in v1.008 RR]:
 
 ```lua
 local mathantics=require(script:WaitForChild("Mathantics"))
@@ -135,3 +134,65 @@ print("To put that in perspective, A for loop would've tooken more time than the
 print("And yes.. this was made by a femboy who isnt a furry (yea ik thats rare every knowledgable tech person is furry):3")
 print("And it was made possible from viewers like u :D","Anyone can contribute and use this in there projects (but you have to make your forked version public and open source or i will issue DMCAs [If you Mod one in your game and you dont publish that modded version that is a DMCA, But you do not have to make your game open sourced (its just the library your using has to. Understand?)])")
 ```
+
+# nETN (New Eternity Num) [v0.100\]
+```lua
+-- This Source Code Form is subject to the terms of the Mozilla Public
+-- License, v. 2.0. If a copy of the MPL was not distributed with this
+-- file, You can obtain one at https://www.mozilla.org/en-US/MPL/2.0/
+
+--[[
+Original EternityNum Creator: @FoundForces, https://create.roblox.com/store/asset/12144172446/EternityNum-2
+Original Name: EternityNum
+Original Description: A library to handle numbers upto 10↑↑2^1024 (https://googology.fandom.com/wiki/Arrow_notation)
+
+꒰ঌ૮ ᴗ͈ . ᴗ͈ ྀིა໒꒱
+
+EternityNum was great and served Button Incremental(200k+ visits)
+and GBI Grand Button Incremental (1.2m+ visits)
+but it had some performance bottlenecks for Button Incremental Infinity (20m? visits).
+
+So @xoIitl introduces...
+
+
+	             ▄████████     ███     ███▄▄▄▄     
+	            ███    ███ ▀█████████▄ ███▀▀▀██▄   
+	███▄▄▄▄     ███    █▀     ▀███▀▀██ ███   ███   
+	███▀▀▀██▄  ▄███▄▄▄         ███   ▀ ███   ███   
+	███   ███ ▀▀███▀▀▀         ███     ███   ███   
+	███   ███   ███    █▄      ███     ███   ███   
+	███   ███   ███    ███     ███     ███   ███   
+	 ▀█   █▀    ██████████    ▄████▀    ▀█   █▀    
+
+	introducing nETN (newEternityNum)
+	
+	• The New standard BigNum library for incremental games :D
+	• Numbers can go up to 10^10^(2^1024) at blazing fast and accurate speeds x3 
+	• Backwords Compatibility with the original EternityNum2
+	• 100% Refactored and Maintained by the Bulletin of Cute Femboys
+	• 100% Open Source and Free 4EVER X3
+	• Used in high scale commerical roblox games. (my game maybe)
+	• Made possible and maintained from viewers like you (pbs kids)
+	• Automatically Compatible with Mathantics (another BCF maintained project)
+	• nETN is apart of the Mathantics Ecosystem as well as
+	Mathantics (nETN supported), Mathantics (NATIVE and no nETN dependency)
+	and nETN itself (which you are viewing RN)
+	
+So thank you viewer for using the nETN project... We will now provide Documentation embedded within each function x3
+
+Original Author by @xoIitl
+Maintained by The Bulletin of Cute Femboys
+VERSION v0.100
+]]
+```
+
+--TEST SCRIPT WIP
+
+# MORE INFO
+A C++ port will eventually start once both dependencies are in v1.008 RR (release)
+But for now as of June 20, 2026 They will be in Luau (roblox) modules.
+
+The Roadmap for the Mathantics repo:
+Mathantics (with nETN as a dependency) - ✅
+Mathantics NATIVE (no dependencys) - WIP
+nETN - WIP

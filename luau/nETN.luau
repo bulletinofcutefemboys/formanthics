@@ -47,6 +47,82 @@ So thank you viewer for using the nETN project... We will now provide Documentat
 Original Author by @xoIitl
 Maintained by The Bulletin of Cute Femboys
 VERSION v0.100
+
+ETN: A valid NewEternityNum Table
+EN: A valid EternityNum Table
+FlexNum: A valid NewEternityNum Table OR a Luau IEEE 754 number
+val: Any valid input that can be converted to an NewEternityNum Table (Luau numbers, scienfitic notation XeY, EternityNum Tables, BigNum Tables and nETN/EN formatted strings)
+
+FUNCTIONS:
+--// CHECK
+	nETN.IsNan(FlexNum): boolean -> returns if the given value is NAN or not
+	nETN.IsInf(FlexNum): boolean -> returns if the given value is INF or not
+	nETN.IsZero(FlexNum): boolean -> returns if the given value is 0 or not
+	nETN.IsInteger(FlexNum): boolean -> returns if the given value is an integer or not
+
+--// CONVERT
+	nETN.new(Sign, Layer, Exp): ETN -> Directy create a new NewEternityNum Table using legacy (EN.new) :->: Sign*(10^^Layer)^(Val1+Val2)
+	nETN.Create(Sign, Mantissa, Magnitude): ETN -> Directy create a new NewEternityNum Table using the an L1 method :->: Sign*Mantissa*10^Magnitude
+	nETN.fromNumber(number): ETN -> Converts a number into an NewEternityNum Table
+	nETN.fromString(string): ETN -> Converts a nETN formatted string, number or scientific notation into an NewEternityNum Table
+	nETN.fromENString(string): ETN -> Converts a EN formatted string into an NewEternityNum Table
+	nETN.fromEN(EN): ETN -> Converts an EternityNum Table into an NewEternityNum Table
+	nETN.fromScientific(string): ETN -> Converts "XeY" into an NewEternityNum Table
+	nETN.fromDefaultStringFormat(string): ETN -> Converts an nETN formatted string "S;L;v1;v2" into an NewEternityNum Table
+	nETN.convert(val): ETN -> Converts any valid input to an EternityNum Table
+	
+	nETN.toNumber(ETN): number -> Converts a NewEternityNum Table to an number
+	nETN.toString(ETN): string -> Converts a NewEternityNum Table to a formatted string ("S;L;v1;v2")
+	nETN.toScientific(val): string -> Converts a value to an string ("XeY") [WIP]
+	nETN.toLayerNotation(val, digits): string -> Converts a value to an string ("E(x)y") [WIP]
+	nETN.toSuffix(val): string -> Converts a value to an suffix [WIP]
+	nETN.short(val, digits): string -> Converts a value to an displayable string [WIP]
+
+--// BOOLEAN
+	nETN.eq(val1, val2): bool -> returns if val1 equals val2 (==)
+	nETN.le(val1, val2): bool -> returns if val1 is less then val2 (<)
+	nETN.me(val1, val2): bool -> returns if val1 is more then val2 (>)
+	nETN.leeq(val1, val2): bool -> returns if val1 is less or equal then val2 (<=)
+	nETN.meeq(val1, val2): bool -> returns if val1 is more or equal then val2 (>=)
+	nETN.between(val,min,max): bool -> returns if val is between min and max (exclusive)
+	nETN.nETN.betweenInclusive(val,min,max): bool -> returns if val is between min and max (inclusive)
+
+--// S CALCS [WIP]
+	nETN.abs(val): ETN -> returns the absolute value of val
+	nETN.neg(val): ETN -> returns the negated value of val (-val)
+	nETN.recip(val): ETN -> returns the reciprocal of val (1/val)
+	nETN.log10(val): ETN -> returns the logarithm base 10 of val
+	nETN.abslog10(val): ETN -> returns the logarithm base 10 of the absolute value of val :->: log10(abs(val))
+	nETN.exp(val): ETN -> returns e^val 
+    nETN.pow10(val): ETN -> returns 10^val
+    nETN.squared(val): ETN -> returns the square of val
+    nETN.cubed(val): ETN -> returns the square root of val
+    nETN.sqrt(val): ETN -> returns the square root of val
+    nETN.cbrt(val): ETN -> returns the cube root of val
+    nETN.gamma(val): ETN -> returns (val - 1)! [NOT IN nETN planned in later versions]
+    nETN.fact(val): ETN -> returns val! [NOT IN nETN planned in later versions]
+    
+    --// USE FOR LEADERBOARDS
+    nETN.lbencode(val): number -> returns a number that can be stored in ordereddatastore [WIP]
+    nETN.lbdecode(number): ETN -> converts a lbencoded number back to an NewEternityNum Table [WIP]
+  
+--// BIN CALCS [WIP]
+	nETN.add(val1, val2): ETN -> returns val1 + val2
+	nETN.sub(val1, val2): ETN -> returns val1 - val2
+	nETN.mul(val1, val2): ETN -> returns val1 * val2
+	nETN.div(val1, val2): ETN -> returns val1 / val2
+	nETN.pow(val1, val2): ETN -> returns val1 ^ val2
+	nETN.log(val, base): ETN -> returns logarithm of val, if base is nil it will return log(val) (natural logarithm)
+	nETN.root(val1, val2): ETN -> returns val2'th root of val1
+	nETN.rand(min, max): ETN -> returns a random number between min and max
+	nETN.exporand(min, max): ETN -> returns a random number between min and max
+	nETN.cmp(val1, val2): number -> 
+		returns 0 if val1 == val2
+		returns 1 if val1 > val2
+		returns -1 if val1 < val2
+	nETN.cmpAbs(EN1, EN2): number -> returns cmp(abs(EN1),abs(EN2))
+	nETN.maxAbs(val1, val2): ETN -> returns the max(abs(val1), abs(val2))
+
 ]]
 
 --// Start of NewEternityNum
@@ -91,17 +167,17 @@ type EN={Sign:number,Layer:number,Exp:number}
 local nETN = {}
 
 --Creates an ETN without corrections.
-function nETN.RawNew(Sign:boolean,Layer:number,Value:number,Sigfigs:number?):ETN
-	Sigfigs=Sigfigs or 0 
+function nETN.RawNew(Sign:boolean,Layer:number,Value:number,Sigfigs:number):ETN
+	if Sigfigs<MIN_LUA_FLOAT then Sigfigs=0 end
 	return{Sign=Sign,Layer=Layer,Val1=Value,Val2=Sigfigs}
 end
 
-local ZERO = nETN.RawNew(true,0,0)
-local ONE = nETN.RawNew(true,0,1)
-local MinusONE = nETN.RawNew(false,0,1)
-local NaN = nETN.RawNew(true,-1,1)
-local Inf = nETN.RawNew(true,-2,1)
-local MinusInf = nETN.RawNew(false,-2,1)
+local ZERO = nETN.RawNew(true,0,0,0)
+local ONE = nETN.RawNew(true,0,1,0)
+local MinusONE = nETN.RawNew(false,0,1,0)
+local NaN = nETN.RawNew(true,-1,1,0)
+local Inf = nETN.RawNew(true,-2,1,0)
+local MinusInf = nETN.RawNew(false,-2,1,0)
 local TEN,MinusTEN=nETN.RawNew(true,0,10,0),nETN.RawNew(false,0,10,0)
 
 local readonly=table.freeze
@@ -296,6 +372,21 @@ function nETN.fromString(Value:string):ETN
 	return nETN.RawNew(Sign==1,Layer,Val1,Val2)
 end
 
+--Converts a string (in the form of nETN's S;L;V1;V2 and special nETN values) to ETN
+--WE DO NOT ANYTHING NOT nETN formatted use nETN.fromString() instead !!
+--Do not pass malformed strings here
+function nETN.fromDefaultStringFormat(Value:string):ETN
+	if Value=="NaN" or Value=="nan" then return NaN end
+	if Value=="Inf" or Value=="inf" then return Inf end
+	if Value=="-Inf" or Value=="-inf" then return MinusInf end
+	if Value=="0" then return ZERO end
+	if Value=="" then return ZERO end
+	local slice = string.split(Value,";")
+	local Sign,Layer,Val1,Val2=tonumber(slice[1]),tonumber(slice[2]),tonumber(slice[3]),tonumber(slice[4])
+	if Sign==nil or Layer==nil or Val1==nil or Val2==nil then error("Malformed nETN: ",slice) end
+	return nETN.RawNew(Sign==1,Layer,Val1,Val2)
+end
+
 --Converts an EN to an ETN
 function nETN.fromEN(Sign:number,Layers:number,Exp:number):ETN
 	Sign=Sign>=0 
@@ -472,6 +563,20 @@ function nETN.meeq(a:ValidInput,b:ValidInput):boolean
 	return nETN.cmp(nETN.convert(a),nETN.convert(b))~=-1
 end
 
+-- Returns a bool whether v is between (x,y) exclusive
+function nETN.between(v:ValidInput,x:ValidInput,y:ValidInput):boolean
+	v,x,y=nETN.convert(v),nETN.convert(x),nETN.convert(y)
+	local cmp=nETN.cmp(v,x)if cmp~=1 then return false end
+	cmp=nETN.cmp(v,y)return cmp==-1
+end
+
+-- Returns a bool whether v is between [x,y] inclusive
+function nETN.betweenInclusive(v:ValidInput,x:ValidInput,y:ValidInput):boolean
+	v,x,y=nETN.convert(v),nETN.convert(x),nETN.convert(y)
+	local cmp=nETN.cmp(v,x)if cmp==-1 then return false end
+	cmp=nETN.cmp(v,y)return cmp~=1
+end
+
 --Returns the Absolute Value of an ETN
 function nETN.abs(Value:ValidInput):ETN
 	Value=nETN.convert(Value)
@@ -535,9 +640,7 @@ function nETN.recip(Value:ValidInput):ETN
 	Value=nETN.convert(Value)return recipfast(Value)
 end
 
---Returns the log10 of an ETN
-function nETN.log10(Value:ValidInput):ETN
-	Value=nETN.convert(Value)
+local function fastlog10(Value:ETN):ETN
 	if not Value.Sign then return NaN end
 	local Layer = Value.Layer
 	if Layer==-2 then return Inf end
@@ -574,6 +677,16 @@ function nETN.log10(Value:ValidInput):ETN
 	else
 		return nETN.RawNew(true,Layer-1,val1,val2)
 	end
+end
+
+--Returns the log10 of an ETN
+function nETN.log10(Value:ValidInput):ETN
+	Value=nETN.convert(Value)return fastlog10(Value)
+end
+
+--Returns the log10 of the Absolute Value of an ETN
+function nETN.abslog10(Value:ValidInput):ETN
+	Value=nETN.convert(Value)return fastlog10(nETN.RawNew(true,Value.Layer,Value.Val1,Value.Val2))
 end
 
 --MAGIC SOLVER
@@ -1612,7 +1725,7 @@ local function fastadd(a:ETN,b:ETN):ETN
 			end
 			local pa=av1-bv1 local rs=pa>=0
 			if not rs then pa=-pa end
-			if rs2~=rs then
+			if rs2~=rs and pb~=0 then
 				pb=1-pb
 				pa-=1
 			end
@@ -1656,10 +1769,7 @@ local function fastadd(a:ETN,b:ETN):ETN
 			end
 			local Multi if thesign then Multi=asign else Multi=bobsign end
 			return nETN.RawNew(Multi,1,pa,pb)
-		else
-			if av1~=bv1 then if av1>bv1 then return a end return b end
-			
-		end
+		else return nETN.maxAbs(a,b)end
 	end
 	if alayer>blayer then 
 		a,b=b,a
@@ -1668,13 +1778,46 @@ local function fastadd(a:ETN,b:ETN):ETN
 	end
 	if alayer==0 then
 		if blayer==1 then
-			
+			if av1==0 then --tiny l0
+				if bv1>=0 then return b end
+				-- tiny l0 vs tiny l1
+				local lav=log10(av2)
+				local diff=bv1+bv2-lav
+				local S=thesign and 1 or -1 if thesign then
+					if diff<TWYLAS_NUMBER then return a end
+				else
+					if diff<DRACULAURAS_NUMBER then return a end
+				end
+				local VV_CEPHEI=1+S*pow10(diff)
+				local venus=av2*VV_CEPHEI
+				if venus<=MIN_ABSOLUTE_RANGE then
+					local logged=log10(av2)+log10(VV_CEPHEI)
+					local floored=floor(logged)
+					return nETN.RawNew(asign,1,floored,logged-floored)
+				end
+				return nETN.RawNew(asign,0,0,venus)
+			else --large l0
+				if bv1<0 then return a end
+				-- big l0 vs big l1
+				local lav=log10(av1)
+				local diff=bv1+bv2-lav
+				local S=thesign and 1 or -1 if thesign then
+					if diff<TWYLAS_NUMBER then return a end
+				else
+					if diff<DRACULAURAS_NUMBER then return a end
+				end
+				local VV_CEPHEI=1+S*pow10(diff)
+				local sign=VV_CEPHEI<0 and -1 or 1
+				local venus=log10(av1)+log10(sign*VV_CEPHEI)
+				if venus<DigitLimit then
+					local logged=sign*av1*VV_CEPHEI
+					return nETN.RawNew(bsign,0,logged,thesign and av2 or 1-av2)
+				end
+				local floored=floor(venus)
+				return nETN.RawNew(bsign,1,floored,venus-floored)
+			end
 		else return b end
-	elseif alayer==1 then
-		if blayer==2 then
-			
-		else return b end
-	end
+	else return b end
 end
 --Adds two ETNs together like a+b
 function nETN.add(a:ValidInput,b:ValidInput):ETN
@@ -1888,7 +2031,11 @@ end
 --Divides two ETNs together like a/b
 function nETN.div(a:ValidInput,b:ValidInput):ETN
 	a=nETN.convert(a)b=nETN.convert(b)
-	
+	return nETN.mul(a,recipfast(b))
+end
+
+function nETN.toStringFromNumber(number:number):string
+	return nETN.toString(nETN.fromNumber(number))
 end
 
 return nETN

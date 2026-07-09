@@ -16,6 +16,7 @@ License: MPL v2.0 :D
 
 notes:
 this math module may not be 100% Optimized but it is fast enough for commercial roblox game usage.
+Version - v1.009
 ]]
 
 local function len(t:{[any]:any}):(number)local n=0 for _ in pairs(t)do n+=1 end return n end

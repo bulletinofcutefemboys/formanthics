@@ -5,13 +5,13 @@
 
 --!native
 local rs = game:GetService("ReplicatedStorage")
-local ETN = require(script:WaitForChild("EternityNum")) --inlined dependency (change path ofc :3) [USING OUTDATED EternityNum by FoundForces]
+local ETN = require(rs.DataModules:WaitForChild("ETNModule")) --inlined dependency (change path ofc :3)
 local formanthics,pi:number,e:number = {},math.pi,math.exp(1)
-
+--local nETN = require(rs.DataModules:WaitForChild("nETN"))
 --[[ ★☆ ★☆ ★☆ ★☆ ★☆ ★☆
 Formanthics Math Module, made possible by viewers like you XD
-Powered By EternityNum by @FoundForces (A Formanthics NATIVE fork will be released soon :3)
-Original Author: xoIitl
+Powered By NewEternityNum by xoIitl @ The Bulletin of Cute Femboys (A Formanthics NATIVE fork will be released soon :3)
+Original Author of Formanthics: xoIitl
 License: MPL v2.0 :D
 
 notes:
@@ -25,10 +25,8 @@ local function rounding(v:number,precision:number,stringed:boolean?):(string|num
 	return stringed and tostring(finale) or finale
 end
 
-export type EN=ETN.EN
-export type BN=ETN.BN
-export type FlexNum=number|EN
-
+export type ETN=ETN.ETN
+export type FlexNum=number|ETN
 --improved math.random with luck k.
 function formanthics.randomize(k:number):(number)
 	local x:number = math.random()
@@ -84,7 +82,7 @@ function formanthics.xprequiredtonextlvl(level:number):(number)
 end
 
 local OMEGA:number = 0.56714329040978387299997  --W(1, 0)
-local ETNZero=ETN.new(0,0,0)
+local ETNZero=ETN.new(true,0,0)
 
 --Lambert W function. Identity: W(x*e^x)=x <Accepts ETN>
 function formanthics.W(z:FlexNum,tol:number?):(FlexNum)
@@ -137,10 +135,10 @@ end
 formanthics.buttoncostscaling = {
 	--Multis take in, 1: General Hardness, 2: Big Button Hardness, 3: Cutoff Number
 	BasicExponential={
-		ButtonCost=function(n:number,costinitial:number,multis:{number}):(EN)
+		ButtonCost=function(n:number,costinitial:number,multis:{number}):(ETN)
 			return ETN.roundify(ETN.mul(costinitial,ETN.pow(multis[1],n)),2)
 		end, --Buttoncost
-		BigButtonCost=function(n:number,costinitial:number,multis:{number},T:number):(EN)
+		BigButtonCost=function(n:number,costinitial:number,multis:{number},T:number):(ETN)
 			local Miamis_Number=math.pow(multis[2],-multis[3])
 			return ETN.mul(costinitial,ETN.pow(multis[1],ETN.add(ETN.sub(ETN.pow(multis[2],n-T-multis[3]),Miamis_Number),n)))
 		end, --Bigbuttoncost
@@ -161,10 +159,10 @@ formanthics.buttoncostscaling = {
 		end, --Inverse Big Button Cost
 	},
 	BasicPolynomial={ -- Multis take in, 1: Polynomial Degree, 2: Big Button Hardness, 3: Cutoff Number
-		ButtonCost=function(n:number,costinitial:number,multis:{number}):(EN)
+		ButtonCost=function(n:number,costinitial:number,multis:{number}):(ETN)
 			return ETN.roundify(ETN.mul(costinitial,ETN.pow(n+1,multis[1])),2)
 		end, --Buttoncost
-		BigButtonCost=function(n:number,costinitial:number,multis:{number},T:number):(EN)
+		BigButtonCost=function(n:number,costinitial:number,multis:{number},T:number):(ETN)
 			local E1=ETN.log(
 				ETN.div(
 					formanthics.W(ETN.div(
@@ -229,12 +227,12 @@ formanthics.buttoncostscaling = {
 
 formanthics.buttongainscaling = {
 	BasicExponential={
-		GainFormula=function(n:number,gaininitial:number,multis:{number}):(EN)
+		GainFormula=function(n:number,gaininitial:number,multis:{number}):(ETN)
 			return ETN.mul(gaininitial,ETN.pow(multis[1],n))
 		end, -- Button Gain
 	},
 	BasicPolynomial={
-		GainFormula=function(n:number,gaininitial:number,multis:{number}):(EN)
+		GainFormula=function(n:number,gaininitial:number,multis:{number}):(ETN)
 			return ETN.mul(gaininitial,ETN.pow(n+1,multis[1]))
 		end, -- Button Gain
 	},
@@ -254,7 +252,7 @@ end
 
 local ETNOne=ETN.new(1,0,1)
 --Factorial function for INTEGERS ONLY! (Use formanthics.gamma(x) for the Gamma Function) <Returns ETN>
-function formanthics.etnfactorial(n:number,stopping:number):(EN)
+function formanthics.etnfactorial(n:number,stopping:number):(ETN)
 	n=math.round(n)stopping=stopping or 2
 	stopping=math.round(stopping)>n and n or math.round(stopping) 
 	if n < 0 or n ~= n then return ETNZero end
@@ -263,9 +261,9 @@ function formanthics.etnfactorial(n:number,stopping:number):(EN)
 	for i=n-1,(stopping>=2 and stopping or 2),-1 do result = ETN.mul(result,ETN.new(1,0,i)) end return result
 end
 
-local AChooseB:{[string]:EN},ABMAX:number={},10
-local B:{EN},BMAX:number = {ETNOne},10
-local QNumbers:{{EN}},QMAX:number = {{ETNOne},{ETNOne,ETNOne}},10
+local AChooseB:{[string]:ETN},ABMAX:number={},10
+local B:{ETN},BMAX:number = {ETNOne},10
+local QNumbers:{{ETN}},QMAX:number = {{ETNOne},{ETNOne,ETNOne}},10
 local GUASS_NODES:{{nodes:{number},weights:{number}}},Gmax:number={},10
 
 --Calculates Chebyshev roots used for inputting x into the formanthics.getFornbergW :3
@@ -309,7 +307,7 @@ function formanthics.computeGLayer(n:number,returnB:boolean):({nodes:{number},we
 end for i=1,Gmax do formanthics.computeGLayer(i,false)end
 
 --Calculates the Binomial Coefficient "a choose b" :3 (Use formanthics.Binomial if you priortize speed. THIS FUNCTION DOES NOT CACHE!) <Returns ETN>
-function formanthics.computeACB(a:number,b:number,returnB:boolean):(EN?)
+function formanthics.computeACB(a:number,b:number,returnB:boolean):(ETN?)
 	local binomial=ETNOne if a==b or b==0 then 
 		AChooseB[tostring(a).."_"..tostring(b)]=binomial
 		return returnB and binomial or nil
@@ -324,7 +322,7 @@ end
 for a=0,ABMAX do for b=0,a do formanthics.computeACB(a,b,false)end end
 
 --Calculates the Eulerian Numbers up to n :3 (Use formanthics.getQNumbers for production. THIS FUNCTION IS ONLY USED TO GENERATE!) <Returns ETN>
-function formanthics.computeEu(n:number,returnB:boolean):({EN}?)
+function formanthics.computeEu(n:number,returnB:boolean):({ETN}?)
 	local Ld=#QNumbers for QR=Ld+1,n do
 		local qnumbers={ETNOne}
 		for i=2,QR-1 do local qn1=QNumbers[Ld]
@@ -347,7 +345,7 @@ function formanthics.Binomial(a:number,b:number,normal:boolean?):(FlexNum)
 end
 
 --Calculates the Bernoulli Numbers up to n :3 (Use formanthics.B for production. THIS FUNCTION IS ONLY USED TO GENERATE!) <Returns ETN>
-function formanthics.computeB(n:number,returnB:boolean):(EN?)
+function formanthics.computeB(n:number,returnB:boolean):(ETN?)
 	if B[n+1]then return returnB and B[n+1]or nil end
 	if n%2==1 and n>1 then B[n+1]=ETNZero return B[n+1]end
 	local accumulated=ETNZero for k=0,n-1 do 
@@ -355,7 +353,7 @@ function formanthics.computeB(n:number,returnB:boolean):(EN?)
 			ETN.mul(formanthics.Binomial(n+1,k,false),formanthics.computeB(k,true))
 		)
 	end
-	accumulated=ETN.div(accumulated,n+1)accumulated.Sign*=-1 B[n+1]=accumulated return accumulated
+	accumulated=ETN.div(accumulated,n+1)accumulated.Sign=not accumulated.Sign B[n+1]=accumulated return accumulated
 end formanthics.computeB(BMAX,false)
 
 --Returns the nth Bernoulli Number, normal=true on default. if normal=false then it returns an ETN value.
@@ -384,7 +382,7 @@ function formanthics.getGuassLayer(n:number):({nodes:{number},weights:{number}})
 	return formanthics.computeGLayer(n,true)
 end
 
-local Q:{(number)->(EN)}={function()return ETNOne end}
+local Q:{(number)->(ETN)}={function()return ETNOne end}
 --Given the degree of the polynomial and the x value, it returns a nth-deg Eulerian Polynomial and is evaluated at x. <Accepts ETN>
 function formanthics.q(deg:number,x:FlexNum,normal:boolean?):(FlexNum)
 	if type(normal)=="nil"then normal=true end
@@ -441,7 +439,7 @@ function formanthics.Integrate(Fx:(FlexNum)->(FlexNum),a:number,b:number,isetn:b
 	end return sum
 end
 
-local function parseetn(etn:EN)
+local function parseetn(etn:ETN)
 	local mantissa=etn.Layer==1 and tostring(math.pow(10,etn.Exp-math.floor(etn.Exp)))or tostring(etn.Exp/math.pow(10,math.log10(etn.Exp)))
 	return (etn.Sign==-1 and "-"or"+")..mantissa.." E "..(etn.Layer==1 and math.floor(etn.Exp)or math.floor(math.log10(etn.Exp)))
 end
@@ -672,7 +670,7 @@ function formanthics.topolarform(z:CTN):(number,number)
 end
 --Truncates floating point errors from a CTN :3
 function formanthics.beautifycomplex(z:CTN):(CTN)
-	return {RealPart=math.round(z.RealPart*1E14)/1E14+0,ComplexPart=math.round(z.ComplexPart*1E14)/1E14+0}
+	return {RealPart=math.round(z.RealPart*1E14)/1E14+0,ComplexPart=math.round(z.ComplexPart*1E10)/1E10+0}
 end
 
 local function formula1(r:number,n:number,k:number,theta:number):(CTN)
@@ -773,7 +771,8 @@ function formanthics.solvepolynomialequation(a:number,b:number,c:number,d:number
 						return{formanthics.CTNnew(l,nD),formanthics.CTNnew(l,-nD)}
 					else return{formanthics.convtoz(l+nD),formanthics.convtoz(l-nD)}end
 				end
-			end else local p=-c/(3*b)local u=27*b^2*e if c^2==3*b*d and c^3==u then return{formanthics.convtoz(p)}end
+			end else --TARTAGLIA's METHOD
+			local p=-c/(3*b)local u=27*b^2*e if c^2==3*b*d and c^3==u then return{formanthics.convtoz(p)}end
 			local q,k=2*c^3-9*b*c*d+u,c^2-3*b*d local Q=q^2-4*k^3 k=formanthics.convtoz(k)
 			local C=formanthics.complexcbrt(formanthics.complexscale(formanthics.complexadd(formanthics.sqrttoz(Q),formanthics.convtoz(q)),0.5))
 			local roots,tocancel={},{}for _,z in ipairs(C)do 
@@ -781,9 +780,20 @@ function formanthics.solvepolynomialequation(a:number,b:number,c:number,d:number
 				S=formanthics.beautifycomplex(S)if not formanthics.iscomplex(S) then if type(table.find(tocancel,S.RealPart))=="number"then continue end table.insert(tocancel,S.RealPart)end table.insert(roots,S)
 			end return roots
 		end
-	else local q3=8*a*c local q0,q1,q2=16*a^2*d,256*a^3*e,q3-3*b^2 local P=formanthics.convtoz(-b/(4*a))if q2==0 and q0==b^3 and q1==b^4 then return{P}end
+	else --FERRARI's METHOD
+		local q3=8*a*c local q0,q1,q2=16*a^2*d,256*a^3*e,q3-3*b^2 
+		local P=formanthics.convtoz(-b/(4*a))if q2==0 and q0==b^3 and q1==b^4 then return{P}end
 		local p,q,r=q2/(8*a^2),(2*b^3-q3*b+q0)/(16*a^3),(b^2*(2*q3-3*b^2)-4*q0*b+q1)/(256*a^4)
-		local lambda=formanthics.complextoreal(formanthics.solvepolynomialequation(0,1,p,p^2/4-r,-q^2/8))[1]
+		local rawroots=formanthics.solvepolynomialequation(0,1,p,p^2/4-r,-q^2/8)
+		local lambda=formanthics.complextoreal(rawroots)[1]
+		if not lambda then
+			warn("the resolvent cubic was",1,p,p^2/4-r,-q^2/8)
+			warn(formanthics.solvepolynomialequation(0,1,p,p^2/4-r,-q^2/8))
+			warn("the cubic solutions returns fuzzy complex floating point errored coefficients")
+			warn("we will fully fix this in v1.108 RR")
+			return{}
+		end
+		
 		local B,Ca=formanthics.sqrttoz(2*lambda),formanthics.convtoz(lambda+p/2)
 		if formanthics.CTNeq(B,CTNOrigin) then local D=formanthics.complexsqrt(formanthics.complexsub(formanthics.complexsquared(Ca),formanthics.convtoz(r)))
 			local Cm=formanthics.flip(Ca)local roots={}

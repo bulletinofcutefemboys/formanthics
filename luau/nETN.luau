@@ -136,6 +136,7 @@ local ln:(v:number)->(number)=math.log
 local log10:(v:number)->(number)=math.log10
 local pow10:(v:number)->(number)=function(v)return 10^v end
 local floor:(v:number)->(number)=math.floor
+local ceil:(v:number)->(number)=math.ceil
 local abs:(v:number)->(number)=math.abs
 local LOG10_E = 0.4342944819032518
 local LN10 = 2.302585092994046
@@ -143,14 +144,21 @@ local FLOAT_INT_LIMIT = 9007199254740992
 local FLOAT_HALF_INT_LIMIT = 4503599627370495.5
 local POW10_EPSILON = 4.821736528239456e-17
 local MACHINE_EPSILON = 2.220446049250313e-16
-local MACHINE_EPSILON_HALF = 1.1102230246251565e-16
+local MACHINE_EPSILON_HALF = 1.1102230246251568e-16
 
 local MAX_LUA_FLOAT=1.7976931348623157e308
 local MIN_LUA_FLOAT=2.2250738585072014e-308
 local LOG10_MAX = 308.254715559916718   -- Above this, pow10 → INFINITY
 local LOG10_MIN = 307.652655568588755  -- Below this, pow10 → 0
-local DigitLimit=300
+local DigitLimit=256
+local Pinkie_Pie_Limit=256
+local Pinkie_Pie_MAXPOW2=2^floor(math.log(Pinkie_Pie_Limit,2))
+local FLOAT_PINKIEPIE_LIMIT=FLOAT_HALF_INT_LIMIT*Pinkie_Pie_MAXPOW2
+local FLOAT_RAINBOWDASH_LIMIT=Pinkie_Pie_Limit*FLOAT_INT_LIMIT
+local floor300:(v:number)->(number)=function(v)return Pinkie_Pie_Limit*floor(v/Pinkie_Pie_Limit)end
 
+local MERCURY_SVVI_NUMBER=5.551115123125784e-17
+local MXRCURY_TVANIUS_NUMBER=MERCURY_SVVI_NUMBER*Pinkie_Pie_Limit
 local MIAMIS_NUMBER=-16.31680545889046562
 local LUMIS_NUMBER=-16.617835454554445
 local DADES_NUMBER=log10(DigitLimit)
@@ -168,7 +176,7 @@ local nETN = {}
 
 --Creates an ETN without corrections.
 function nETN.RawNew(Sign:boolean,Layer:number,Value:number,Sigfigs:number):ETN
-	if Sigfigs<MIN_LUA_FLOAT then Sigfigs=0 end
+	if abs(Sigfigs)<MIN_LUA_FLOAT then Sigfigs=0 end
 	return{Sign=Sign,Layer=Layer,Val1=Value,Val2=Sigfigs}
 end
 
@@ -245,9 +253,11 @@ local function MAGRANGEABS2(M)return M>=MAX_ABSOLUTE_RANGE end
 local function LOGRANGE_A(L)return L<=-MAX_ABSOLUTE_RANGE end
 local function LOGRANGE_B(L)return L>=MAX_ABSOLUTE_RANGE end
 
---Legacy EN.new Function UPDATED :D [Use this to create Layer 2 numbers 10e(10e309+)]
---Creates an ETN with corrections. (Use nETN.Create for accurate values 10e(10e14) and above!)
-function nETN.new(Sign:boolean|number,Layer:number,Value:number):ETN
+--Creates an ETN with corrections. (Use nETN.Create for accurate values 10e(10e14) and L1 values!)
+function nETN.new(Sign:boolean|number,Layer:number,Value:number,Value2:number):ETN
+	if not Value2 then Value2=0 else
+		Value2=math.clamp(Value2,-Pinkie_Pie_Limit,Pinkie_Pie_Limit)
+	end
 	if type(Sign)=="number"then Sign=Sign>=0 end
 	if Layer<-2 or Layer>MAX_LAYER then Layer=0 end
 	if Layer==-2 then
@@ -256,47 +266,101 @@ function nETN.new(Sign:boolean|number,Layer:number,Value:number):ETN
 		return NaN
 	end
 	if Layer==0 then
-		if Value==0 then return ZERO end
-		if Value<0 then Value=-Value Sign=not Sign end
+		if Value==0 and Value2==0 then return ZERO end
+		if Value+Value2<0 then
+			Sign=not Sign
+			if abs(Value2)<MERCURY_SVVI_NUMBER then
+				Value=-Value Value2=0
+			else
+				Value=-Value-1
+				Value2=1-Value2
+			end
+		end
 		if Value==INFINITY then return Sign and Inf or MinusInf end
 		
-		if NUMBERRANGE(Value)then
-			local logvalue=log10(Value)
-			local flooredLog=floor(logvalue)
+		if NUMBERRANGE(Value+Value2)then
+			local logvalue=log10(Value+Value2)
+			local flooredLog=floor300(logvalue)
 			return nETN.RawNew(Sign,1,flooredLog,logvalue-flooredLog)
 		end
 		local flooredint=floor(Value)
-		return nETN.RawNew(Sign,0,flooredint,Value-flooredint)
+		local pb=Value2+(Value-flooredint)
+		if pb>=1 or pb<0 then 
+			local carry=floor(pb)
+			pb-=carry
+			flooredint+=carry
+		end
+		return nETN.RawNew(Sign,0,flooredint,pb)
 	elseif Layer==1 then
-		if Value==0 then return Sign and ONE or MinusONE end
+		if Value==0 and Value2==0 then return Sign and ONE or MinusONE end
 		if Value==INFINITY then return Sign and Inf or MinusInf end
 		if Value==-INFINITY then return ZERO end
-		
-		if MAGRANGE(Value)then
-			local powvalue=pow10(Value)
+
+		if MAGRANGE(Value+Value2)then
+			local powvalue=pow10(Value+Value2)
 			local flooredint=floor(powvalue)
 			return nETN.RawNew(Sign,0,flooredint,powvalue-flooredint)
 		end
-		local flooredLog=floor(Value)
+		local flooredLog=floor300(Value)
 		if MAGRANGEABS2(flooredLog) then
 			local Dlog=log10(flooredLog)
-			local flooredDlog=floor(Dlog)
+			local flooredDlog=floor300(Dlog)
 			return nETN.RawNew(Sign,2,flooredDlog,Dlog-flooredDlog)
 		end
-		return nETN.RawNew(Sign,1,flooredLog,Value-flooredLog)
+		local pb=Value2+(Value-flooredLog)
+		local added=Value+Value2
+		local rainbowdashcheck=(FLOAT_RAINBOWDASH_LIMIT>=added and -FLOAT_RAINBOWDASH_LIMIT<added)
+		if pb>=Pinkie_Pie_Limit or (rainbowdashcheck and pb<0) then 
+			local carry=floor300(pb)
+			pb-=carry
+			flooredLog+=carry
+		elseif pb<=-Pinkie_Pie_Limit then
+			local carry=ceil(pb/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
+			flooredLog+=carry
+			pb-=carry
+		end
+		return nETN.RawNew(Sign,1,flooredLog,pb)
 	else
 		if Value==INFINITY then return Sign and Inf or MinusInf end
 		if Value<MIAMIS_NUMBER then return Sign and ONE or MinusONE end
-		local val22=Value Value=pow10(Value)if Value<DigitLimit then
+		local val20,val21=Value,Value2 Value=pow10(val20+val21)if Value<DigitLimit then
 			local powpow10=pow10(Value)
 			local flooredpp10=floor(powpow10)
 			return nETN.RawNew(Sign,0,flooredpp10,powpow10-flooredpp10)
 		end
 		if Value<MAX_ABSOLUTE_RANGE then
-			local floored=floor(Value)
-			return nETN.RawNew(Sign,1,floored,Value-floored)
-		end local floored=floor(val22)
-		return nETN.RawNew(Sign,2,floored,val22-floored)
+			local floored=floor300(Value)
+			
+			local pb=(Value-floored)
+			local rainbowdashcheck=(FLOAT_RAINBOWDASH_LIMIT>=floored and -FLOAT_RAINBOWDASH_LIMIT<floored)
+			if pb>=Pinkie_Pie_Limit or (rainbowdashcheck and pb<0) then 
+				local carry=floor300(pb)
+				pb-=carry
+				floored+=carry
+			elseif pb<=-Pinkie_Pie_Limit then
+				local carry=ceil(pb/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
+				floored+=carry
+				pb-=carry
+			end
+			
+			return nETN.RawNew(Sign,1,floored,pb)
+		end 
+		
+		local floored=floor300(val20)
+		local pb=floored==val20 and val21 or (val20-floored)+val21
+		local added=val20+val21
+		local rainbowdashcheck=(FLOAT_RAINBOWDASH_LIMIT>=added and -FLOAT_RAINBOWDASH_LIMIT<added)
+		if pb>=Pinkie_Pie_Limit or (rainbowdashcheck and pb<0) then 
+			local carry=floor300(pb)
+			pb-=carry
+			floored+=carry
+		elseif pb<=-Pinkie_Pie_Limit then
+			local carry=ceil(pb/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
+			floored+=carry
+			pb-=carry
+		end
+
+		return nETN.RawNew(Sign,2,floored,pb)
 	end
 end
 
@@ -310,14 +374,13 @@ function nETN.Create(Sign:boolean,Mantissa:number,Magnitude:number):ETN
 
 	Magnitude=floor(Magnitude)
 	local logmantissa=log10(Mantissa)
-	local added=floor(logmantissa)
 
-	local madded=Magnitude+added
+	local madded=Magnitude+logmantissa
 	if math.isinf(madded)then return madded<0 and MinusInf or Inf end
-	
+
 	if MAGRANGEABS2(madded)then
 		local doublelog=log10(madded)
-		local flooredDlog=floor(doublelog)
+		local flooredDlog=floor300(doublelog)
 		return nETN.RawNew(Sign,2,flooredDlog,doublelog-flooredDlog)
 	end
 	if MAGRANGE(madded) then
@@ -325,7 +388,20 @@ function nETN.Create(Sign:boolean,Mantissa:number,Magnitude:number):ETN
 		local flooredMtimesMag=floor(MtimesMag)
 		return nETN.RawNew(Sign,0,flooredMtimesMag,MtimesMag-flooredMtimesMag)
 	else
-		return nETN.RawNew(Sign,1,madded,logmantissa-added)
+		local flooredMag=floor300(Magnitude)
+		local remainder=Magnitude-flooredMag
+		local pb=logmantissa+remainder
+		local rainbowdashcheck=(FLOAT_RAINBOWDASH_LIMIT>=madded and -FLOAT_RAINBOWDASH_LIMIT<madded)
+		if pb>=Pinkie_Pie_Limit or (rainbowdashcheck and pb<0) then 
+			local carry=floor300(pb)
+			pb-=carry
+			flooredMag+=carry
+		elseif pb<=-Pinkie_Pie_Limit then
+			local carry=ceil(pb/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
+			pa+=carry
+			flooredMag-=carry
+		end
+		return nETN.RawNew(Sign,1,flooredMag,pb)
 	end
 end
 
@@ -337,7 +413,7 @@ function nETN.fromNumber(Value:number):ETN
 	if magnitude==INFINITY then return sign and Inf or MinusInf end
 	if NUMBERRANGE(magnitude) then
 		local logvalue=log10(magnitude)
-		local flooredLog=floor(logvalue)
+		local flooredLog=floor300(logvalue)
 		return nETN.RawNew(sign,1,flooredLog,logvalue-flooredLog)
 	else
 		local flooredint=floor(magnitude)
@@ -361,7 +437,7 @@ function nETN.fromString(Value:string):ETN
 	if Value=="-Inf" or Value=="-inf" then return MinusInf end
 	if Value=="0" then return ZERO end
 	if Value=="" then return ZERO end
-	
+
 	local N=tonumber(Value)if N then
 		if math.isinf(N)or (N==0 and string.find(Value,"e")) then return nETN.fromScientific(Value)end
 		return nETN.fromNumber(N)
@@ -624,14 +700,22 @@ local function recipfast(Value:ETN):ETN
 		local added=val1+val2
 		if added<=-MAX_ABSOLUTE_RANGE then
 			added=-added local logval=log10(added)
-			local flooredlog=floor(logval)
+			local flooredlog=floor300(logval)
 			return nETN.RawNew(sign,2,flooredlog,logval-flooredlog)
 		end
 		if val2==0 then
 			if val1==0 then return sign and ONE or MinusONE end
 			return nETN.RawNew(sign,1,-val1,0)
 		else
-			return nETN.RawNew(sign,1,-val1-1,1-val2)
+			local removebug=-FLOAT_RAINBOWDASH_LIMIT==val1 and val2<0
+			if FLOAT_RAINBOWDASH_LIMIT<=val1 or -FLOAT_RAINBOWDASH_LIMIT>val1 or removebug then
+				return nETN.RawNew(sign,1,-val1,-val2)
+			end
+			if abs(val2)<MERCURY_SVVI_NUMBER then
+				if val1==0 then return sign and ONE or MinusONE end
+				return nETN.RawNew(sign,1,-val1,0)
+			end
+			return nETN.RawNew(sign,1,-(val1+Pinkie_Pie_Limit),Pinkie_Pie_Limit-val2)
 		end
 	elseif Layer==-2 then return ZERO else return NaN end
 end
@@ -640,6 +724,7 @@ function nETN.recip(Value:ValidInput):ETN
 	Value=nETN.convert(Value)return recipfast(Value)
 end
 
+local LL10_E=log10(LOG10_E)
 local function fastlog10(Value:ETN):ETN
 	if not Value.Sign then return NaN end
 	local Layer = Value.Layer
@@ -649,6 +734,16 @@ local function fastlog10(Value:ETN):ETN
 	local result=val1+val2
 	if Layer==0 then
 		if val1==0 and val2==0 then return MinusInf end
+		if val1==1 and val2>0 and val2<MACHINE_EPSILON_HALF then
+			local V=LOG10_E*val2
+			if V<=MIN_ABSOLUTE_RANGE then
+				local pa,pb=log10(val2),LL10_E
+				local flooredpa=floor300(pa)
+				pb+=pa-flooredpa
+				return nETN.RawNew(true,1,flooredpa,pb)
+			end
+			return nETN.RawNew(true,0,0,V)
+		end
 		if result==1 then return ZERO end
 		local L10=log10(result)
 		local resultSign=L10>=0 if not resultSign then L10=-L10 end
@@ -657,22 +752,26 @@ local function fastlog10(Value:ETN):ETN
 	elseif Layer==1 then
 		if LOGRANGE_A(result) then
 			local L10=log10(-result)
-			local flooredlog=floor(L10)
+			local flooredlog=floor300(L10)
 			return nETN.RawNew(false,1,flooredlog,L10-flooredlog)
 		else
+			if val2>=1 or val2<0 then
+				local floored=floor(val2)
+				val2-=floored val1+=floored
+			end
 			local resultSign=result>=0 if not resultSign then
 				val1=-val1
-				if val2~=0 then
+				if val2>=MERCURY_SVVI_NUMBER then
 					val2=1-val2
 					val1-=1
-				end
+				else val2=0 end
 			end
 			return nETN.RawNew(resultSign,0,val1,val2)
 		end
 	end
 	if LOGRANGE_B(result)then
 		local L10=log10(result)
-		local flooredlog=floor(L10)
+		local flooredlog=floor300(L10)
 		return nETN.RawNew(true,Layer,flooredlog,L10-flooredlog)
 	else
 		return nETN.RawNew(true,Layer-1,val1,val2)
@@ -697,16 +796,30 @@ local function algol(Value:ETN,MULTIPLIER:number):ETN
 	if Layer==-1 then return NaN end
 	local val1,val2=Value.Val1,Value.Val2
 	local result=val1+val2
-	
+
 	if Layer==0 then
 		if val1==0 and val2==0 then return MinusInf end
+		if val1==1 and val2>0 and val2<MACHINE_EPSILON_HALF then
+			local V=MULTIPLIER*LOG10_E*val2
+			if V<=MIN_ABSOLUTE_RANGE then
+				local pa,pb=log10(val2),LL10_E+log10(MULTIPLIER)
+				local flooredpa=floor300(pa)
+				pb+=pa-flooredpa
+				if pb>=Pinkie_Pie_Limit then
+					pb-=Pinkie_Pie_Limit
+					pa+=Pinkie_Pie_Limit
+				end
+				return nETN.RawNew(true,1,flooredpa,pb)
+			end
+			return nETN.RawNew(true,0,0,V)
+		end
 		if result==1 then return ZERO end
 		local L10=log10(result)*MULTIPLIER
 		local RS=L10<0 if RS then L10=-L10 end
 		local flooredlog=floor(L10)
 		return nETN.RawNew(not RS,0,flooredlog,L10-flooredlog)
 	end
-	
+
 	--MULTIPLIER DOMAIN 3.24407040516e-3 to 2.0739842734e15
 
 	local resultSign=result>=0
@@ -717,7 +830,7 @@ local function algol(Value:ETN,MULTIPLIER:number):ETN
 		if LOGRANGE_B(result)then --L>=1e300
 			if not resultSign then val1=-val1 val2=-val2 end
 			local L10=log10(val1+val2)+log10(MULTIPLIER)
-			local flooredlog=floor(L10)
+			local flooredlog=floor300(L10)
 			return nETN.RawNew(resultSign,1,flooredlog,L10-flooredlog)
 		end
 		val1*=MULTIPLIER val2*=MULTIPLIER
@@ -734,25 +847,43 @@ local function algol(Value:ETN,MULTIPLIER:number):ETN
 		val2+=multLog
 	end
 	if math.isinf(result)then return resultSign and MinusInf or Inf end
-	
+
 	if LOGRANGE_B(result)then -- L>=1e300
 		local L10=log10(result)
-		local flooredlog=floor(L10)
+		local flooredlog=floor300(L10)
 		return nETN.RawNew(resultSign,Layer,flooredlog,L10-flooredlog)
 	else
+		local LBool=Layer<=1
+		local M=LBool and 1 or Pinkie_Pie_Limit
+		local Mercurian_Number=LBool and MERCURY_SVVI_NUMBER or MXRCURY_TVANIUS_NUMBER
+		local FloatLimit=LBool and FLOAT_HALF_INT_LIMIT or FLOAT_PINKIEPIE_LIMIT
+		local absval1=abs(val1)
+		local rainbowdashcheck=FLOAT_RAINBOWDASH_LIMIT<absval1
+		if not LBool and rainbowdashcheck then
+			if not resultSign then
+				val1=-val1
+				val2=-val2
+			end
+			if abs(val2)>=M then
+				local ceilorfloor=val2>=0 and floor or ceil
+				local flooredval2=ceilorfloor(val2/M)*M
+				val2-=flooredval2
+			end
+			return nETN.RawNew(resultSign,Layer-1,val1,val2)
+		end
 		if not resultSign then
 			val1=-val1
-			if val2~=0 then
-				val2=1-val2
-				val1-=1
-			end
+			if val2>=Mercurian_Number then
+				val2=M-val2
+				val1-=M
+			else val2=0 end
 		end
-		if val1<=FLOAT_HALF_INT_LIMIT then
-			local flooredval=floor(val1)
+		if not rainbowdashcheck and absval1<=FloatLimit then
+			local flooredval=floor(val1/M)*M
 			val2+=val1-flooredval val1=flooredval
 		end
-		if val2>=1 or val2<0 then
-			local flooredval2=floor(val2)
+		if val2>=M or val2<0 then
+			local flooredval2=floor(val2/M)*M
 			val2-=flooredval2 val1+=flooredval2
 		end
 		return nETN.RawNew(resultSign,Layer-1,val1,val2)
@@ -766,11 +897,12 @@ function nETN.log(Value:ValidInput,Base:number):ETN
 	Value=nETN.convert(Value)
 	if not Base then return algol(Value,LN10)end
 	if type(Base)~="number"then Base=nETN.toNumber(Base)end
-	if Base>0 and Base~=1 then
+	if Base>0 and Base~=1 and Base==Base then
 		Base=math.clamp(Base,BASE_LIMIT_RECIP,BASE_LIMIT)
 		local LOG10BASE=log10(Base)
 		if LOG10BASE<0 then
 			local log=algol(Value,-1/LOG10BASE)
+			if log.Layer==-1 then return log end
 			return nETN.RawNew(not log.Sign,log.Layer,log.Val1,log.Val2)
 		end
 		return algol(Value,1/LOG10BASE)
@@ -801,11 +933,28 @@ function nETN.pow10(Value:ValidInput):ETN
 			local flooredresult=floor(result)
 			return nETN.RawNew(true,0,flooredresult,result-flooredresult)
 		else
-			if not sign then val1=-val1
-				if val2~=0 then
-					val2=1-val2
-					val1-=1
+			local absval1=abs(val1)
+			if FLOAT_RAINBOWDASH_LIMIT<absval1 then
+				if not sign then
+					val1=-val1
+					val2=-val2
 				end
+				return nETN.RawNew(true,1,val1,val2)
+			end
+			
+			if not sign then val1=-val1
+				if val2>=MXRCURY_TVANIUS_NUMBER then
+					val2=Pinkie_Pie_Limit-val2
+					val1-=Pinkie_Pie_Limit
+				else val2=0 end
+			end
+			if absval1<=FLOAT_PINKIEPIE_LIMIT then
+				local flooredval=floor300(val1)
+				val2+=val1-flooredval val1=flooredval
+			end
+			if val2>=Pinkie_Pie_Limit or val2<0 then
+				local flooredval2=floor300(val2)
+				val2-=flooredval2 val1+=flooredval2
 			end
 			return nETN.RawNew(true,1,val1,val2)
 		end
@@ -815,7 +964,8 @@ function nETN.pow10(Value:ValidInput):ETN
 		if not sign then 
 			local result=pow10(added)
 			if result==INFINITY then return ZERO end
-			local flooredresult=floor(result)
+			result=-result
+			local flooredresult=floor300(result)
 			return nETN.RawNew(true,1,flooredresult,result-flooredresult)
 		end
 	elseif not sign then return ZERO end
@@ -837,7 +987,7 @@ end
 local function anubis(LOGBASE:number,Value:ETN):ETN
 	if LOGBASE==0 then return ONE end
 	if nETN.IsZero(Value)then return ONE end
-	
+
 	local MultiplierSign=LOGBASE>=0
 	local Layer,sign = Value.Layer,Value.Sign
 	if not MultiplierSign then
@@ -845,23 +995,27 @@ local function anubis(LOGBASE:number,Value:ETN):ETN
 	end
 	if Layer==-2 then return sign and Inf or ZERO end
 	if Layer==-1 then return NaN end
-	
+
 	local val1,val2=Value.Val1,Value.Val2
 	local added=val1+val2
-	
+
 	local R_CHECK,result=true,0
 	if Layer==0 then local ALOG=added*LOGBASE --L2 checks (LOGBASE = 1e299, Value = {1;0;1e299;0}) [SOLVED]
 		if ALOG<=POW10_EPSILON then return ONE end
 		if not sign and ALOG==INFINITY then return ZERO end
 		if sign and MAGRANGEABS2(ALOG) then -- >=1e300
 			result=log10(added)+log10(LOGBASE)
-			local floored=floor(result)
+			local floored=floor300(result)
 			return nETN.RawNew(true,2,floored,result-floored)
 		end
 		R_CHECK=not MAGRANGEABS(ALOG) -- M>=300
 		if R_CHECK then
 			val1*=LOGBASE
 			val2*=LOGBASE
+			if val1+val2<Pinkie_Pie_Limit then
+				val1=Pinkie_Pie_Limit
+				val2=ALOG-val1
+			end
 		else if not sign then ALOG=-ALOG end result=pow10(ALOG)end
 	elseif Layer==1 then local logged_LOGBASE=log10(LOGBASE) --[SOLVED]
 		local InnerExp=added+logged_LOGBASE
@@ -875,44 +1029,63 @@ local function anubis(LOGBASE:number,Value:ETN):ETN
 			local floored=floor(result)
 			return nETN.RawNew(true,0,floored,result-floored)
 		end
-		if not sign then R_CHECK=false result=-pow10Exp else
+		if not sign then R_CHECK=false pow10Exp=-pow10Exp else
 			R_CHECK=InnerExp>=DigitLimit
 		end
 		if R_CHECK then
-			local flooredloggedlogbase=floor(logged_LOGBASE)
-			val1+=flooredloggedlogbase
-			val2+=logged_LOGBASE-flooredloggedlogbase
+			val2+=logged_LOGBASE
 		else
 			result=pow10Exp
 		end
 	elseif Layer==MAX_LAYER then
 		if not sign then return ZERO end
-		result=pow10(added)
+		result=pow10(added) --1e307
 		if result==INFINITY then return Inf end
-		return nETN.RawNew(true,MAX_LAYER,result,0)
+		local logged_LOGBASE=log10(LOGBASE) --302
+		if logged_LOGBASE>=Pinkie_Pie_Limit then
+			logged_LOGBASE-=Pinkie_Pie_Limit
+			result+=Pinkie_Pie_Limit
+		elseif logged_LOGBASE<=-Pinkie_Pie_Limit then
+			logged_LOGBASE+=Pinkie_Pie_Limit
+			result-=Pinkie_Pie_Limit
+		end
+		return nETN.RawNew(true,MAX_LAYER,result,logged_LOGBASE)
 	else
 		if sign then
 			return nETN.RawNew(true,Layer+1,val1,val2)
 		else return ZERO end
 	end
 	if R_CHECK then
-		if not sign then val1=-val1
-			if val2~=0 then
-				val2=1-val2
-				val1-=1
+		local absval1=abs(val1)
+		if FLOAT_RAINBOWDASH_LIMIT<absval1 then
+			if not sign then
+				val1=-val1
+				val2=-val2
 			end
+			if abs(val2)>=Pinkie_Pie_Limit then
+				local ceilorfloor=val2>=0 and floor or ceil
+				local flooredval2=ceilorfloor(val2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
+				val2-=flooredval2
+			end
+			return nETN.RawNew(true,Layer+1,val1,val2)
 		end
-		if val1<=FLOAT_HALF_INT_LIMIT then
-			local flooredval=floor(val1)
+		if not sign then val1=-val1
+			if val2>=MXRCURY_TVANIUS_NUMBER then
+				val2=Pinkie_Pie_Limit-val2
+				val1-=Pinkie_Pie_Limit
+			else val2=0 end
+		end
+		if absval1<=FLOAT_PINKIEPIE_LIMIT then
+			local flooredval=floor300(val1)
 			val2+=val1-flooredval val1=flooredval
 		end
-		if val2>=1 or val2<0 then
-			local flooredval2=floor(val2)
+		if val2>=Pinkie_Pie_Limit or val2<0 then
+			local flooredval2=floor300(val2)
 			val2-=flooredval2 val1+=flooredval2
 		end
 		return nETN.RawNew(true,Layer+1,val1,val2)
 	else
-		local flooredresult=floor(result)
+		local flooredresult=Layer==0 and floor(result)or floor300(result)
 		return nETN.RawNew(true,Layer,flooredresult,result-flooredresult)
 	end
 end
@@ -923,7 +1096,7 @@ end
 
 local function fastpowX(A:number,Value:ETN):ETN
 	local sign,layer,val1,val2=Value.Sign,Value.Layer,Value.Val1,Value.Val2
-	if not sign and val1==1 and val2==0 then return recipfast(Value)end
+	if not sign and val1==1 and val2==0 then return nETN.recip(A)end
 	if layer==-1 then return NaN end
 
 	if A==0 then
@@ -971,6 +1144,7 @@ end
 --Returns the A^x of an ETN
 function nETN.powX(A:number,Value:ValidInput):ETN
 	if A==1 then return ONE end
+	if A~=A then return NaN end
 	Value=nETN.convert(Value)
 	return fastpowX(A,Value)
 end
@@ -989,16 +1163,16 @@ local function fastsquare(Value:ETN):ETN
 	if val1==1 and val2==0 then return ONE end
 	if Layer==2 then
 		val2+=Itas_Number
-		if val2>=1 then
-			val1+=1
-			val2-=1
+		if val2>=Pinkie_Pie_Limit then
+			val1+=Pinkie_Pie_Limit
+			val2-=Pinkie_Pie_Limit
 		end
 		return nETN.RawNew(true,2,val1,val2)
 	end
 	if Layer==0 then local val1iszero=val1==0
 		if(val1iszero and val2<=MIN_ABSOLUTE_RANGE_SQRT)or(val1>=MAX_ABSOLUTE_RANGE_SQRT)then
 			local added=2*log10(val1+val2)
-			local flooredlog=floor(added)
+			local flooredlog=floor300(added)
 			return nETN.RawNew(true,1,flooredlog,added-flooredlog)
 		end
 		if val1iszero then return nETN.RawNew(true,0,0,val2^2)end
@@ -1016,10 +1190,14 @@ local function fastsquare(Value:ETN):ETN
 	val1=val1*2 val2=val2*2
 	if val1==-INFINITY then return ZERO end
 	if MAGRANGEABS2(val1) then
-		val1=log10(val1)local floored=floor(val1)
+		val1=log10(val1)
+		local floored=floor300(val1)
 		return nETN.RawNew(true,2,floored,val1-floored)
 	end
-	if val2>=1 then local carry=floor(val2)
+	if val2>=Pinkie_Pie_Limit then local carry=floor300(val2)
+		val2-=carry val1+=carry
+	elseif val2<=-Pinkie_Pie_Limit then
+		local carry=ceil(val2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
 		val2-=carry val1+=carry
 	end
 	return nETN.RawNew(true,1,val1,val2)
@@ -1044,16 +1222,16 @@ function nETN.cubed(Value:ValidInput):ETN
 	if val1==1 and val2==0 then return sign and ONE or MinusONE end
 	if Layer==2 then
 		val2+=Ritas_Number
-		if val2>=1 then
-			val1+=1
-			val2-=1
+		if val2>=Pinkie_Pie_Limit then
+			val1+=Pinkie_Pie_Limit
+			val2-=Pinkie_Pie_Limit
 		end
 		return nETN.RawNew(sign,2,val1,val2)
 	end
 	if Layer==0 then local val1iszero=val1==0
 		if(val1iszero and val2<=MIN_ABSOLUTE_RANGE_CBRT)or(val1>=MAX_ABSOLUTE_RANGE_CBRT)then
 			local added=3*log10(val1+val2)
-			local flooredlog=floor(added)
+			local flooredlog=floor300(added)
 			return nETN.RawNew(sign,1,flooredlog,added-flooredlog)
 		end
 		if val1iszero then return nETN.RawNew(sign,0,0,val2^3)end
@@ -1075,10 +1253,13 @@ function nETN.cubed(Value:ValidInput):ETN
 	val1=val1*3 val2=val2*3
 	if val1==-INFINITY then return ZERO end
 	if MAGRANGEABS2(val1) then
-		val1=log10(val1)local floored=floor(val1)
+		val1=log10(val1)local floored=floor300(val1)
 		return nETN.RawNew(sign,2,floored,val1-floored)
 	end
-	if val2>=1 then local carry=floor(val2)
+	if val2>=Pinkie_Pie_Limit then local carry=floor300(val2)
+		val2-=carry val1+=carry
+	elseif val2<=-Pinkie_Pie_Limit then
+		local carry=ceil(val2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
 		val2-=carry val1+=carry
 	end
 	return nETN.RawNew(sign,1,val1,val2)
@@ -1134,8 +1315,8 @@ local function teleiopartA(Value:ETN,x:number):ETN
 	if val1==1 and val2==0 then return sign and ONE or MinusONE end
 	if Layer==2 then
 		val2+=log10(x)
-		if val2>=1 then
-			local added=floor(val2)
+		if val2>=Pinkie_Pie_Limit then
+			local added=floor300(val2)
 			val1+=added
 			val2-=added
 		end
@@ -1149,10 +1330,10 @@ local function teleiopartA(Value:ETN,x:number):ETN
 			if added==-INFINITY then return ZERO end
 			if added>=MAX_ABSOLUTE_RANGE then
 				local logspaceadded=log10(log10val)+log10(x)
-				local floored=floor(logspaceadded)
+				local floored=floor300(logspaceadded)
 				return nETN.RawNew(sign,2,floored,logspaceadded-floored)
 			end
-			local flooredlog=floor(added)
+			local flooredlog=floor300(added)
 			return nETN.RawNew(sign,1,flooredlog,added-flooredlog)
 		end
 		if val1iszero then return nETN.RawNew(sign,0,0,val2^x)end
@@ -1187,13 +1368,16 @@ local function teleiopartA(Value:ETN,x:number):ETN
 		local b=result-a
 		return nETN.RawNew(sign,0,a,b)
 	end
-	val2=val2*x
-	if val1==-INFINITY then return ZERO end
-	if MAGRANGEABS2(val1*x) then
-		val1=log10(val1)+log10(x)local floored=floor(val1)
-		return nETN.RawNew(sign,2,floored,val1-floored)
-	end val1*=x
-	if val2>=1 then local carry=floor(val2)
+	if MAGRANGEABS2(x*(val1+val2)) then
+		local Kval=log10(val1+val2)+log10(x)local floored=floor300(Kval)
+		return nETN.RawNew(sign,2,floored,Kval-floored)
+	end
+	val1*=x val2=val2*x
+	if val1+val2==-INFINITY then return ZERO end
+	if val2>=Pinkie_Pie_Limit then local carry=floor300(val2)
+		val2-=carry val1+=carry
+	elseif val2<=-Pinkie_Pie_Limit then
+		local carry=ceil(val2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
 		val2-=carry val1+=carry
 	end
 	return nETN.RawNew(sign,1,val1,val2)
@@ -1201,11 +1385,12 @@ end
 
 --Returns the x^n of an ETN [n must be an integer] (most accurate)
 function nETN.powerInt(Value:ValidInput,x:number):ETN
+	x=math.floor(x)
 	if x==0 then return ONE end
+	if x~=x then return NaN end
 	if x==-1 then return nETN.recip(Value)end
 	Value=nETN.convert(Value)
 	if x==1 then return Value end
-	x=math.floor(x)
 	if math.isinf(x)then return x<0 and ZERO or Inf end
 	if x<0 then return teleiopartA(recipfast(Value),-x)end
 	return teleiopartA(Value,x)
@@ -1220,38 +1405,41 @@ function nETN.sqrt(Value:ValidInput):ETN
 	if Layer==-2 then return Inf end
 	if Layer==-1 then return NaN end
 	if nETN.IsZero(Value)then return ZERO end
-	
+
 	local val1,val2=Value.Val1,Value.Val2
 	if val1==1 and val2==0 then return ONE end
 	if Layer==2 then
 		val2-=Itas_Number
-		if val2<0 then
-			val1-=1
-			val2+=1
+		local cod
+		if FLOAT_RAINBOWDASH_LIMIT>=val1 then cod=val2<0 else cod=val2<=-Pinkie_Pie_Limit end
+		if cod then
+			val1-=Pinkie_Pie_Limit
+			val2+=Pinkie_Pie_Limit
 		end local inner=val1+val2
 		if inner<DigitLimit then
 			return nETN.RawNew(true,1,pow10(inner),0)
 		end
 		return nETN.RawNew(true,2,val1,val2)
 	end
-	local added=val1+val2 if Layer==1 then
-		val1*=0.5 val2*=0.5 added*=0.5
+	if Layer==1 then
+		val1*=0.5 val2*=0.5 local added=val1+val2
 		if abs(added)<DigitLimit then
 			return nETN.RawNew(true,0,pow10(added),0)
 		end
-		local floored=floor(val1)
+		local floored=floor300(val1)
 		val2+=val1-floored val1=floored
-		if val2>=1 then local carry=floor(val2)
+		if val2>=Pinkie_Pie_Limit or (val1<=FLOAT_RAINBOWDASH_LIMIT and val1>-FLOAT_RAINBOWDASH_LIMIT and val2<0) then
+			local carry=floor300(val2)
 			val2-=carry val1+=carry
 		end
 		return nETN.RawNew(true,1,val1,val2)
 	end
-	local result=math.sqrt(added)
+	local result=math.sqrt(val1+val2)
 	local a=floor(result)
 	local b=result-a
 	return nETN.RawNew(true,0,a,b)
 end
-
+--val1<=FLOAT_RAINBOWDASH_LIMIT and val1>-FLOAT_RAINBOWDASH_LIMIT
 --Returns the cbrt(x) of an ETN
 function nETN.cbrt(Value:ValidInput):ETN
 	Value=nETN.convert(Value)
@@ -1260,14 +1448,16 @@ function nETN.cbrt(Value:ValidInput):ETN
 	if Layer==-2 then return sign and Inf or MinusInf end
 	if Layer==-1 then return NaN end
 	if nETN.IsZero(Value)then return ZERO end
-	
+
 	local val1,val2=Value.Val1,Value.Val2
 	if val1==1 and val2==0 then return sign and ONE or MinusONE end
 	if Layer==2 then
 		val2-=Ritas_Number
-		if val2<0 then
-			val1-=1
-			val2+=1
+		local cod
+		if FLOAT_RAINBOWDASH_LIMIT>=val1 then cod=val2<0 else cod=val2<=-Pinkie_Pie_Limit end
+		if cod then
+			val1-=Pinkie_Pie_Limit
+			val2+=Pinkie_Pie_Limit
 		end local inner=val1+val2
 		if inner<DigitLimit then
 			return nETN.RawNew(sign,1,pow10(inner),0)
@@ -1279,9 +1469,10 @@ function nETN.cbrt(Value:ValidInput):ETN
 		if abs(added)<DigitLimit then
 			return nETN.RawNew(sign,0,pow10(added),0)
 		end
-		local floored=floor(val1)
+		local floored=floor300(val1)
 		val2+=val1-floored val1=floored
-		if val2>=1 then local carry=floor(val2)
+		if val2>=Pinkie_Pie_Limit or (val1<=FLOAT_RAINBOWDASH_LIMIT and val1>-FLOAT_RAINBOWDASH_LIMIT and val2<0) then
+			local carry=floor300(val2)
 			val2-=carry val1+=carry
 		end
 		return nETN.RawNew(sign,1,val1,val2)
@@ -1300,26 +1491,29 @@ local function teleiopartB(Value:ETN,x:number):ETN
 	if Layer>=3 then return Value end
 	if Layer==-2 then return sign and Inf or MinusInf end
 	if Layer==-1 then return NaN end
-	
+
 	if nETN.IsZero(Value)then return ZERO end
 
 	local val1,val2=Value.Val1,Value.Val2
 	if val1==1 and val2==0 then return sign and ONE or MinusONE end
 	if Layer==2 then
 		val2-=log10(x)
-		if val2<0 then
-			local added=-floor(val2)
+		local cod,rainbowdash=nil,FLOAT_RAINBOWDASH_LIMIT>=val1+val2
+		if rainbowdash then cod=val2<0 else cod=val2<=-Pinkie_Pie_Limit end
+		if cod then
+			local ceilorfloor=rainbowdash and floor or ceil
+			local added=-ceilorfloor(val2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
 			val1-=added
 			val2+=added
 		end local inner=val1+val2
 		if inner<DigitLimit then
 			local demoted=pow10(inner)
-			local floored=floor(demoted)
 			if demoted<DigitLimit then
 				demoted=pow10(demoted)
-				floored=floor(demoted)
+				local floored=floor(demoted)
 				return nETN.RawNew(sign,0,floored,demoted-floored)
 			end
+			local floored=floor300(demoted)
 			return nETN.RawNew(sign,1,floored,demoted-floored)
 		end
 		return nETN.RawNew(sign,2,val1,val2)
@@ -1331,9 +1525,13 @@ local function teleiopartB(Value:ETN,x:number):ETN
 			local floored=floor(K)
 			return nETN.RawNew(sign,0,floored,K-floored)
 		end
-		local floored=floor(val1)
+		local floored=floor300(val1)
 		val2+=val1-floored val1=floored
-		if val2>=1 then local carry=floor(val2)
+		local C2=val2<0
+		if val2>-MXRCURY_TVANIUS_NUMBER and C2 then
+			val2=0
+		elseif val2>=Pinkie_Pie_Limit or (val1<=FLOAT_RAINBOWDASH_LIMIT and val1>-FLOAT_RAINBOWDASH_LIMIT and C2) then --REMODIFY
+			local carry=floor300(val2)
 			val2-=carry val1+=carry
 		end
 		return nETN.RawNew(sign,1,val1,val2)
@@ -1358,8 +1556,8 @@ local function teleiopartC(Value:ETN,x:number):ETN
 	if val1==1 and val2==0 then return sign and ONE or MinusONE end
 	if Layer==2 then
 		val2+=log10(x)
-		if val2>=1 then
-			local added=floor(val2)
+		if val2>=Pinkie_Pie_Limit then
+			local added=floor300(val2)
 			val1+=added
 			val2-=added
 		end
@@ -1373,10 +1571,10 @@ local function teleiopartC(Value:ETN,x:number):ETN
 			if added==-INFINITY then return ZERO end
 			if added>=MAX_ABSOLUTE_RANGE then
 				local logspaceadded=log10(log10val)+log10(x)
-				local floored=floor(logspaceadded)
+				local floored=floor300(logspaceadded)
 				return nETN.RawNew(sign,2,floored,logspaceadded-floored)
 			end
-			local flooredlog=floor(added)
+			local flooredlog=floor300(added)
 			return nETN.RawNew(sign,1,flooredlog,added-flooredlog)
 		end
 		if val1iszero then return nETN.RawNew(sign,0,0,val2^x)end
@@ -1385,13 +1583,17 @@ local function teleiopartC(Value:ETN,x:number):ETN
 		local b=result-a
 		return nETN.RawNew(sign,0,a,b)
 	end
-	val2=val2*x
+	if MAGRANGEABS2(x*(val1+val2)) then
+		local Kval=log10(val1+val2)+log10(x)local floored=floor300(Kval)
+		return nETN.RawNew(sign,2,floored,Kval-floored)
+	end
+	val1*=x val2=val2*x
 	if val1==-INFINITY then return ZERO end
-	if MAGRANGEABS2(val1*x) then
-		val1=log10(val1)+log10(x)local floored=floor(val1)
-		return nETN.RawNew(sign,2,floored,val1-floored)
-	end val1*=x
-	if val2>=1 then local carry=floor(val2)
+	if val2>=Pinkie_Pie_Limit then
+		local carry=floor300(val2)
+		val2-=carry val1+=carry
+	elseif val2<=-Pinkie_Pie_Limit then
+		local carry=ceil(val2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
 		val2-=carry val1+=carry
 	end
 	return nETN.RawNew(sign,1,val1,val2)
@@ -1408,23 +1610,26 @@ local function teleiopartB_L1(Value:ETN,L1:number):ETN
 	local val1,val2=Value.Val1,Value.Val2
 	if val1==1 and val2==0 then return sign and ONE or MinusONE end
 	if Layer==2 then
-		local flooredL1=floor(L1)
+		local flooredL1=floor300(L1)
 		val2-=L1-flooredL1
 		val1-=flooredL1
-		if val2<0 then
-			local added=-floor(val2)
+		local cod,rainbowdash=nil,FLOAT_RAINBOWDASH_LIMIT>=val1+val2
+		if rainbowdash then cod=val2<0 else cod=val2<=-Pinkie_Pie_Limit end
+		if cod then
+			local ceilorfloor=rainbowdash and floor or ceil
+			local added=-ceilorfloor(val2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
 			val1-=added
 			val2+=added
 		end
 		local inner=val1+val2
 		if inner<DigitLimit then
 			local demoted=pow10(inner)
-			local floored=floor(demoted)
 			if demoted<DigitLimit then
 				demoted=pow10(demoted)
-				floored=floor(demoted)
+				local floored=floor(demoted)
 				return nETN.RawNew(sign,0,floored,demoted-floored)
 			end
+			local floored=floor300(demoted)
 			return nETN.RawNew(sign,1,floored,demoted-floored)
 		end
 		return nETN.RawNew(sign,2,val1,val2)
@@ -1443,9 +1648,13 @@ local function teleiopartB_L1(Value:ETN,L1:number):ETN
 		local V1sign,V2sign=val1<0,val2<0
 		val1=pow10(Log_V1-L1)if V1sign then val1=-val1 end
 		val2=pow10(Log_V2-L1)if V2sign then val2=-val2 end
-		local floored=floor(val1)
+		local floored=floor300(val1)
 		val2+=val1-floored val1=floored
-		if val2>=1 or val2<0 then local carry=floor(val2)
+		local C2=val2<0
+		if val2>-MXRCURY_TVANIUS_NUMBER and C2 then
+			val2=0
+		elseif val2>=Pinkie_Pie_Limit or (val1<=FLOAT_RAINBOWDASH_LIMIT and val1>-FLOAT_RAINBOWDASH_LIMIT and C2) then
+			local carry=floor300(val2)
 			val2-=carry val1+=carry
 		end
 		return nETN.RawNew(sign,1,val1,val2)
@@ -1462,28 +1671,29 @@ local function teleiopartB_L1(Value:ETN,L1:number):ETN
 			X=pow10(X)
 			return nETN.RawNew(sign,2,X,0)
 		end
-		local flooredX=floor(X)
+		local flooredX=floor300(X)
 		return nETN.RawNew(sign,3,flooredX,X-flooredX)
 	end]]
 	return sign and ONE or MinusONE
 end
 
 local function teleiopartC_L1(Value:ETN,L1:number):ETN
+	-- 1;1;-1e300;0 N 300
 	local Layer,sign=Value.Layer,Value.Sign
 	if Layer>=4 then return Value end
 	if Layer==-2 then return sign and Inf or MinusInf end
 	if Layer==-1 then return NaN end
 
 	if nETN.IsZero(Value)then return ZERO end
-	
+
 	local val1,val2=Value.Val1,Value.Val2
 	if val1==1 and val2==0 then return sign and ONE or MinusONE end
 	if Layer==2 then
-		local flooredL1=floor(L1)
+		local flooredL1=floor300(L1)
 		val2+=L1-flooredL1
 		val1+=flooredL1
-		if val2>=1 then
-			local added=floor(val2)
+		if val2>=Pinkie_Pie_Limit then
+			local added=floor300(val2)
 			val1+=added
 			val2-=added
 		end
@@ -1491,7 +1701,7 @@ local function teleiopartC_L1(Value:ETN,L1:number):ETN
 		if inner==INFINITY then return sign and Inf or MinusInf end
 		--[[if inner>=MAX_ABSOLUTE_RANGE then
 			local promoted=log10(inner)
-			local floored=floor(promoted)
+			local floored=floor300(promoted)
 			return nETN.RawNew(sign,3,floored,promoted-floored)
 		end]]
 		return nETN.RawNew(sign,2,val1,val2)
@@ -1500,14 +1710,15 @@ local function teleiopartC_L1(Value:ETN,L1:number):ETN
 		local ASIGN=added<0
 		local LOG_A=log10(abs(added)) -- 2.4 to 300
 		added=LOG_A+L1 -- x+300
+		--added 600 asign=true
 		if ASIGN then
-			if added==INFINITY then return ZERO end
-			added=-added
+			if added>LOG10_MIN then return ZERO end
 			local K=pow10(added)
-			local floored=floor(K)
+			K=-K
+			local floored=floor300(K)
 			return nETN.RawNew(sign,1,floored,K-floored)
 		end
-		
+
 		if added>LOG10_MAX then return sign and Inf or MinusInf end
 		--[[if added>=DigitLimit then
 			local floored=floor(added)
@@ -1516,10 +1727,15 @@ local function teleiopartC_L1(Value:ETN,L1:number):ETN
 		local Log_V1,Log_V2=log10(val1),log10(val2)
 		val1=pow10(Log_V1+L1)
 		val2=pow10(Log_V2+L1)
-		
-		local floored=floor(val1)
+
+		local floored=floor300(val1)
 		val2+=val1-floored val1=floored
-		if val2>=1 or val2<0 then local carry=floor(val2)
+		
+		if val2>=Pinkie_Pie_Limit or (val2<0 and FLOAT_RAINBOWDASH_LIMIT>=val1)then
+			local carry=floor300(val2)
+			val2-=carry val1+=carry
+		elseif val2<=-Pinkie_Pie_Limit then
+			local carry=ceil(val2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
 			val2-=carry val1+=carry
 		end
 		return nETN.RawNew(sign,2,val1,val2)
@@ -1527,15 +1743,15 @@ local function teleiopartC_L1(Value:ETN,L1:number):ETN
 	if Layer==0 then
 		local val1iszero=val1==0
 		local log10val=log10(val1+val2)
-		
+
 		local added=pow10(L1)*log10val
 		if added==-INFINITY then return ZERO end
 		if added>=MAX_ABSOLUTE_RANGE then
 			local logspaceadded=log10(log10val)+L1
-			local floored=floor(logspaceadded)
+			local floored=floor300(logspaceadded)
 			return nETN.RawNew(sign,2,floored,logspaceadded-floored)
 		end
-		local flooredlog=floor(added)
+		local flooredlog=floor300(added)
 		return nETN.RawNew(sign,1,flooredlog,added-flooredlog)
 	end
 	--REMODIFY
@@ -1551,7 +1767,7 @@ local function teleiopartC_L1(Value:ETN,L1:number):ETN
 			X=pow10(X)
 			return nETN.RawNew(sign,2,X,0)
 		end
-		local flooredX=floor(X)
+		local flooredX=floor300(X)
 		return nETN.RawNew(sign,3,flooredX,X-flooredX)
 	end]]
 end
@@ -1560,6 +1776,7 @@ end
 function nETN.root(Value:ValidInput,n:number):ETN
 	if type(n)~="number"then n=nETN.toNumber(n)end
 	if n==0 then return NaN end
+	if n~=n then return NaN end
 	if n==-1 then return nETN.recip(Value)end
 	Value=nETN.convert(Value)
 	if n==1 then return Value end
@@ -1573,6 +1790,7 @@ end
 
 local function fastpower(Value:ETN,x:number):ETN
 	if x==1 then return Value end
+	if x==0 then return ONE end
 	if x<0 then x=-x
 		if x<1 then return teleiopartB(recipfast(Value),1/x)end
 		return teleiopartC(recipfast(Value),x)
@@ -1598,6 +1816,7 @@ end
 --Returns the x^A of an ETN
 function nETN.power(Value:ValidInput,x:number):ETN
 	if x==0 then return ONE end
+	if x~=x then return NaN end
 	if x==-1 then return nETN.recip(Value)end
 	Value=nETN.convert(Value)
 	return fastpower(Value,x)
@@ -1623,7 +1842,7 @@ function nETN.pow(x:ValidInput,y:ValidInput):ETN
 	end
 	if ylayer==1 then return fastpowerY(x,y)end
 	if not xsign and not nETN.IsInteger(y) then return NaN end
-	
+
 	if not ysign then return ZERO end
 	if ylayer==-2 or xlayer==-2 then return Inf end
 	local v1,v2=(x.Val1+x.Val2),(y.Val1+y.Val2)
@@ -1631,9 +1850,9 @@ function nETN.pow(x:ValidInput,y:ValidInput):ETN
 	local loggedv1=log10(v1) local differance=v2-loggedv1
 
 	--[[if differance<TWYLAS_NUMBER then
-		local floored=floor(v1)
+		local floored=floor300(v1)
 		return nETN.RawNew(thesign,2,floored,v1-floored)
-		local floored=floor(loggedv1)
+		local floored=floor300(loggedv1)
 		return nETN.RawNew(thesign,3,floored,loggedv1-floored)
 	end]]
 	if differance>-TWYLAS_NUMBER then
@@ -1644,7 +1863,7 @@ function nETN.pow(x:ValidInput,y:ValidInput):ETN
 	local X=pow10(loggedv1+log10(1+pow10(differance)))
 	if X==INFINITY then return Inf end
 	return nETN.RawNew(thesign,2,X,0)
-	--local flooredX=floor(X)
+	--local flooredX=floor300(X)
 	--return nETN.RawNew(thesign,3,flooredX,X-flooredX)
 end
 
@@ -1658,16 +1877,19 @@ local function mul2(Value:ETN):ETN
 		if added<0 and added>-DigitLimit then
 			return nETN.RawNew(sign,0,0,pow10(added))
 		end
-		if v2>=1 then
-			v1+=1
-			v2-=1
+		if v2>=Pinkie_Pie_Limit then
+			v1+=Pinkie_Pie_Limit
+			v2-=Pinkie_Pie_Limit
+		elseif ((FLOAT_RAINBOWDASH_LIMIT>=v1 and -FLOAT_RAINBOWDASH_LIMIT<v1) and v2<0) then
+			v2+=Pinkie_Pie_Limit
+			v1-=Pinkie_Pie_Limit
 		end
 		return nETN.RawNew(sign,1,v1,v2)
 	end
 	v1*=2
 	if v1>=MAX_ABSOLUTE_RANGE then
 		local logv1=log10(v1)
-		local floored=floor(logv1)
+		local floored=floor300(logv1)
 		return nETN.RawNew(sign,1,floored,logv1-floored)
 	end
 	v2*=2
@@ -1675,20 +1897,21 @@ local function mul2(Value:ETN):ETN
 		v1+=1
 		v2-=1
 	end
+	
 	return nETN.RawNew(sign,0,v1,v2)
 end
 
 local function fastadd(a:ETN,b:ETN):ETN
 	if nETN.IsZero(a)then return b end
 	if nETN.IsZero(b)then return a end
-	
+
 	local asign,bsign=a.Sign,b.Sign local thesign=asign==bsign
 	if not thesign and not asign then
 		a,b=b,a asign,bsign=bsign,asign
 	end
 	local alayer,blayer=a.Layer,b.Layer
 	local av1,av2,bv1,bv2=a.Val1,a.Val2,b.Val1,b.Val2
-	
+
 	if alayer==-1 or blayer==-1 then return NaN end
 	local ainf,binf=alayer==-2,blayer==-2
 	if ainf and binf then
@@ -1704,7 +1927,7 @@ local function fastadd(a:ETN,b:ETN):ETN
 				local pa=av1+bv1
 				if pa>=MAX_ABSOLUTE_RANGE then
 					local loggedpa=log10(pa)
-					local floored=floor(loggedpa)
+					local floored=floor300(loggedpa)
 					return nETN.RawNew(asign,1,floored,loggedpa-floored)
 				end
 				local pb=av2+bv2 if pb>=1 then
@@ -1718,29 +1941,35 @@ local function fastadd(a:ETN,b:ETN):ETN
 			if av1==bv1 then
 				if pb<=MIN_ABSOLUTE_RANGE then
 					local loggedpb=log10(pb)
-					local floored=floor(loggedpb)
+					local floored=floor300(loggedpb)
 					return nETN.RawNew(rs2,1,floored,loggedpb-floored)
 				end
 				return nETN.RawNew(rs2,0,0,pb)
 			end
 			local pa=av1-bv1 local rs=pa>=0
 			if not rs then pa=-pa end
-			if rs2~=rs and pb~=0 then
+			local COD=pb>=MERCURY_SVVI_NUMBER
+			if rs2~=rs and COD then
 				pb=1-pb
 				pa-=1
+			elseif COD then
+				pb=0
 			end
 			return nETN.RawNew(rs,0,pa,pb)
 		elseif alayer==1 then
 			local statement,difference=av1==bv1,nil
-			if statement then difference=bv2-av2 else
+			if statement then
+				difference=bv2-av2
+			else
 				difference=(bv1-av1)+(bv2-av2)
-				if difference>-TWYLAS_NUMBER then return b end
-				if thesign then
-					if difference<TWYLAS_NUMBER then return a end
-				else
-					if difference<DRACULAURAS_NUMBER then return a end
-				end
 			end
+			if difference>-TWYLAS_NUMBER then return b end
+			if thesign then
+				if difference<TWYLAS_NUMBER then return a end
+			else
+				if difference<DRACULAURAS_NUMBER then return a end
+			end
+			
 			local M,bob=thesign and 1 or -1,nil
 			if difference<CLAWDEENS_NUMBER and difference>CLEO_DENILES_NUMBER then
 				bob=thesign and 2 or -LN10*difference
@@ -1748,9 +1977,10 @@ local function fastadd(a:ETN,b:ETN):ETN
 			local bobsign=bob>=0
 			if not bobsign and not thesign then bob=-bob end
 			local logterm=log10(bob)
-			local flooredlog=floor(logterm)
-			local remainder=logterm-flooredlog
-			local pa,pb=av1+flooredlog,av2+remainder
+			local flooredlog=floor300(logterm)
+			
+			local pa,pb=av1+flooredlog,flooredlog==logterm and av2 or (logterm-flooredlog)+av2
+			
 			local added=pa+pb
 			if thesign then
 				if added<0 and added>-DigitLimit then
@@ -1763,9 +1993,17 @@ local function fastadd(a:ETN,b:ETN):ETN
 					return nETN.RawNew(bobsign,0,floored,pow-floored)
 				end
 			end
-			if pb>=1 then
-				pa+=1
-				pb-=1
+			local thecheck,rainbowdashcheck=pb<0,(FLOAT_RAINBOWDASH_LIMIT>=pa and -FLOAT_RAINBOWDASH_LIMIT<pa)
+			if rainbowdashcheck and thecheck then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
+			end
+			if not thecheck and pb>=Pinkie_Pie_Limit then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
+			elseif not rainbowdashcheck and pb<=-Pinkie_Pie_Limit then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
 			end
 			local Multi if thesign then Multi=asign else Multi=bobsign end
 			return nETN.RawNew(Multi,1,pa,pb)
@@ -1792,7 +2030,7 @@ local function fastadd(a:ETN,b:ETN):ETN
 				local venus=av2*VV_CEPHEI
 				if venus<=MIN_ABSOLUTE_RANGE then
 					local logged=log10(av2)+log10(VV_CEPHEI)
-					local floored=floor(logged)
+					local floored=floor300(logged)
 					return nETN.RawNew(asign,1,floored,logged-floored)
 				end
 				return nETN.RawNew(asign,0,0,venus)
@@ -1801,19 +2039,21 @@ local function fastadd(a:ETN,b:ETN):ETN
 				-- big l0 vs big l1
 				local lav=log10(av1)
 				local diff=bv1+bv2-lav
-				local S=thesign and 1 or -1 if thesign then
-					if diff<TWYLAS_NUMBER then return a end
-				else
-					if diff<DRACULAURAS_NUMBER then return a end
-				end
+				local S=thesign and 1 or -1
+				if diff>-TWYLAS_NUMBER then return b end
 				local VV_CEPHEI=1+S*pow10(diff)
 				local sign=VV_CEPHEI<0 and -1 or 1
 				local venus=log10(av1)+log10(sign*VV_CEPHEI)
 				if venus<DigitLimit then
 					local logged=sign*av1*VV_CEPHEI
-					return nETN.RawNew(bsign,0,logged,thesign and av2 or 1-av2)
+					local pb=av2 if not thesign then
+						if av2>=MERCURY_SVVI_NUMBER then
+							pb=1-av2
+						else pb=0 end
+					end
+					return nETN.RawNew(bsign,0,logged,pb)
 				end
-				local floored=floor(venus)
+				local floored=floor300(venus)
 				return nETN.RawNew(bsign,1,floored,venus-floored)
 			end
 		else return b end
@@ -1828,6 +2068,7 @@ end
 --Subtracts two ETNs like a-b
 function nETN.sub(a:ValidInput,b:ValidInput):ETN
 	a=nETN.convert(a)b=nETN.convert(b)
+	if b.Layer==-1 then return NaN end
 	return fastadd(a,nETN.RawNew(not b.Sign,b.Layer,b.Val1,b.Val2))
 end
 
@@ -1837,11 +2078,11 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 	a=nETN.convert(a)b=nETN.convert(b)
 	if nETN.IsZero(a)then return ZERO end
 	if nETN.IsZero(b)then return ZERO end
-	
+
 	local alayer,blayer=a.Layer,b.Layer
 	local av1,av2,bv1,bv2=a.Val1,a.Val2,b.Val1,b.Val2
 	local thesign=a.Sign==b.Sign
-	
+
 	if alayer==-1 or blayer==-1 then return NaN end
 	if alayer==-2 or blayer==-2 then return thesign and Inf or MinusInf end
 	if av1==1 and av2==0 then
@@ -1855,7 +2096,7 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 		if alayer==0 then
 			local logspace=log10(av1+av2)+log10(bv1+bv2)
 			if abs(logspace)>=DigitLimit then
-				local floored=floor(logspace)
+				local floored=floor300(logspace)
 				return nETN.RawNew(thesign,1,floored,logspace-floored)
 			end
 			if av1==0 and bv1==0 then return nETN.RawNew(thesign,0,0,av2*bv2) end
@@ -1885,7 +2126,7 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 			local pa=av1+bv1
 			if pa>=MAX_ABSOLUTE_RANGE then
 				local loggedpa=log10(pa)
-				local floored=floor(loggedpa)
+				local floored=floor300(loggedpa)
 				return nETN.RawNew(thesign,2,floored,loggedpa-floored)
 			elseif pa==-INFINITY then return ZERO end
 			local pb=av2+bv2 local added=pa+pb
@@ -1899,10 +2140,21 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 				local powed=pow10(added)
 				return nETN.RawNew(thesign,0,0,powed)
 			end
-			if pb>=1 then
-				pb-=1
-				pa+=1
-			end --WHAT U DO X3  WHAT U DO X3  WHAT U DO 2 ME X3 
+			
+			local thecheck,rainbowdashcheck=pb<0,(FLOAT_RAINBOWDASH_LIMIT>=pa and -FLOAT_RAINBOWDASH_LIMIT<pa)
+			if rainbowdashcheck and thecheck then
+				pa-=Pinkie_Pie_Limit
+				pb+=Pinkie_Pie_Limit
+			end
+			if not thecheck and pb>=Pinkie_Pie_Limit then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
+			end
+			if not rainbowdashcheck and pb<=-Pinkie_Pie_Limit then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
+			end
+			--WHAT U DO X3  WHAT U DO X3  WHAT U DO 2 ME X3 
 			return nETN.RawNew(thesign,1,pa,pb)
 		elseif alayer==2 then
 			local av,bv=av1+av2,bv1+bv2
@@ -1914,12 +2166,20 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 				return nETN.RawNew(thesign,2,bv1,bv2)
 			end
 			local factor=log10(1+pow10(difference))
-			local flooredfactor=floor(factor)
-			local remainder=factor-flooredfactor
-			local pa,pb=av1+flooredfactor,av2+remainder
-			if pb>=1 then
-				pb-=1
-				pa+=1
+			local flooredfactor=floor300(factor)
+			local pa,pb=av1+flooredfactor,flooredfactor==factor and av2 or (factor-flooredfactor)+av2
+			
+			local thecheck,rainbowdashcheck=pb<0,(FLOAT_RAINBOWDASH_LIMIT>=pa and -FLOAT_RAINBOWDASH_LIMIT<pa)
+			if rainbowdashcheck and thecheck then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
+			end
+			if not thecheck and pb>=Pinkie_Pie_Limit then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
+			elseif not rainbowdashcheck and pb<=-Pinkie_Pie_Limit then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
 			end
 			return nETN.RawNew(thesign,2,pa,pb)
 		end
@@ -1931,8 +2191,20 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 	end
 	if alayer==0 then
 		if blayer==1 then
-			local logA=log10(av1+av2)
-			if abs(logA+bv1+bv2)<DigitLimit then
+			-- A: 1;0;0;6.6666666666e-255
+			-- B: 1;1;256;52.25471555991675
+			
+			local logA=log10(av1+av2) --  -254.20
+			
+			-- -254.2+308.254 = 54.054
+			local bv=bv1+bv2
+			local LB=logA+bv
+			if abs(LB)<DigitLimit then
+				if bv<-LOG10_MIN or bv>LOG10_MAX then
+					local powBv=pow10(LB)
+					local floored=floor(powBv)
+					return nETN.RawNew(thesign,0,floored,powBv-floored)
+				end
 				local powBv=pow10(bv1+bv2)
 				local b1,b2=powBv,0
 				if powBv<=FLOAT_HALF_INT_LIMIT then
@@ -1963,12 +2235,19 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 				end
 				return nETN.RawNew(thesign,0,pa,pb)
 			end
-			local floored=floor(logA)
-			local remainder=logA-floored
-			local pa,pb=bv1+floored,bv2+remainder
-			if pb>=1 then
-				pb-=1
-				pa+=1
+			
+			local ceilorfloor=logA<0 and ceil or floor
+			local floored=ceilorfloor(logA/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
+			local pa,pb=bv1+floored,logA==floored and bv2 or (logA-floored)+bv2
+			
+			local thecheck,rainbowdashcheck=pb<0,(FLOAT_RAINBOWDASH_LIMIT>=pa and -FLOAT_RAINBOWDASH_LIMIT<pa)
+			local PZ if rainbowdashcheck then PZ=thecheck else PZ=pb<=-Pinkie_Pie_Limit end
+			if not thecheck and pb>=Pinkie_Pie_Limit then
+				pa+=Pinkie_Pie_Limit
+				pb-=Pinkie_Pie_Limit
+			elseif PZ then
+				pa-=Pinkie_Pie_Limit
+				pb+=Pinkie_Pie_Limit
 			end
 			return nETN.RawNew(thesign,1,pa,pb)
 		elseif blayer==2 then
@@ -1982,18 +2261,18 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 			local powBv=pow10(bv1+bv2)
 			local preval=powBv+av1
 			if preval<MAX_ABSOLUTE_RANGE then
-				local pav=preval+av2 if abs(pav)<300 then
+				local pav=preval+av2 if abs(pav)<DigitLimit then
 					local powPav=pow10(pav)
 					local floored=floor(powPav)
 					return nETN.RawNew(thesign,0,floored,powPav-floored)
 				end
-				if preval<=FLOAT_HALF_INT_LIMIT then
-					local floored=floor(preval)
+				if abs(preval)<=FLOAT_PINKIEPIE_LIMIT then
+					local floored=floor300(preval)
 					av2+=preval-floored
 					preval=floored
-					if av2>= 1 then
-						av1-=1
-						preval+=1
+					if av2>=Pinkie_Pie_Limit then
+						av1-=Pinkie_Pie_Limit
+						preval+=Pinkie_Pie_Limit
 					end
 				end
 				return nETN.RawNew(thesign,1,preval,av2)
@@ -2021,12 +2300,18 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 			--step 4 after that check we apply Gir's Method
 			local Result=gir+log10(bob)
 			--step 5 we split the result
-			local floored=floor(Result)
+			local floored=floor300(Result)
 			return nETN.RawNew(thesign,2,floored,Result-floored)
 		end
 		-- add future L1*anything handler
 	end
 end
+
+function nETN.toStringFromNumber(number:number):string
+	return nETN.toString(nETN.fromNumber(number))
+end
+
+--MAKESHIFT FUNCTIONS
 
 --Divides two ETNs together like a/b
 function nETN.div(a:ValidInput,b:ValidInput):ETN
@@ -2034,8 +2319,64 @@ function nETN.div(a:ValidInput,b:ValidInput):ETN
 	return nETN.mul(a,recipfast(b))
 end
 
-function nETN.toStringFromNumber(number:number):string
-	return nETN.toString(nETN.fromNumber(number))
+function gbiscientificize(mantissa)
+	local roundedmantissa = math.round(mantissa*1000)
+	return string.sub(tostring(roundedmantissa),1,1).."."..string.sub(tostring(roundedmantissa),2,4)
+end
+
+
+local stuffs = {
+	{"","U","D","t","q","Q","s","S","o","n"},
+	{"","d","V","T","qg","Qg","sg","Sg","O","N"},
+	{"","Ce","Dc","tc","qG","QG","sc","Sc","OG","NG"},
+	special = {"Cen","DuC","TrC","qGe","QGe","sCe","SCe","OGe","NGe"},
+}
+
+function nETN.toScientific(Value: ETN, ActualScientific:boolean?) : string
+	if type(ActualScientific)=="nil"then ActualScientific=false end
+	if Value.Layer > 2 then return "Inf" end
+	if Value.Layer == 2 then return "Inf" end
+	if nETN.IsZero(Value) then return "0e0" end 
+	if not Value.Sign then return "Negative" end
+	
+	local Sign= Value.Sign and 1 or -1
+	if Value.Layer == 0 then
+		local loggedvalue=log10(Value.Val1+Value.Val2)
+		local Mantissa = (Value.Val1+Value.Val2) / (10^ math.floor(loggedvalue) * Sign)
+		return gbiscientificize(Mantissa) .. "e+" .. math.floor(loggedvalue)
+	elseif Value.Layer == 1 then
+		local sigfigs,magnitude = (10^Value.Val2) * Sign,Value.Val1
+		local dot = math.fmod(magnitude,3)+1 sigfigs = tostring(math.round(sigfigs*1000))
+		local processednumber = string.sub(sigfigs,1,dot).."."..string.sub(sigfigs,dot+1,4)
+
+		if 3006 > magnitude and magnitude >= 303 and (not ActualScientific) then
+			if magnitude >= 3003 then return processednumber.."MilN" end local L = math.floor(magnitude/3)-1
+			if L/100 == math.round(L/100) then return processednumber..stuffs["special"][math.round(L/100)] end
+			local P,cn = string.split(tostring(L),""),{} for i,d in ipairs(P) do
+				table.insert(cn,stuffs[4-i][tonumber(d)+1])
+			end if not string.find(tostring(L),"0") then
+				for i,_ in ipairs(cn) do cn[i] = string.sub(cn[i],1,1) end
+			end
+			return processednumber..cn[3]..cn[2]..cn[1]
+		else
+			return string.sub(sigfigs,1,1).."."..string.sub(sigfigs,2,4).."e+"..tostring(magnitude)
+		end
+	end
+
+	local Exp = 10 ^ Value.Val1
+	local Mantissa = (10  ^ Value.Val2)* Sign
+	return gbiscientificize(Mantissa) .. "e+" .. math.floor(Exp)
+end
+
+function nETN.roundify(Value,precision)
+	if nETN.IsInf(Value) then return Inf end
+	if nETN.IsZero(Value) then return ZERO end
+
+	local n = nETN.toNumber(Value)
+	if n ~= math.huge then
+		local l = 1+math.floor(math.log10(n))
+		return nETN.fromNumber(math.round(n/10^(l-precision))*10^(l-precision))
+	end return Value
 end
 
 return nETN

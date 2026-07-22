@@ -256,7 +256,16 @@ local function LOGRANGE_B(L)return L>=MAX_ABSOLUTE_RANGE end
 --Creates an ETN with corrections. (Use nETN.Create for accurate values 10e(10e14) and L1 values!)
 function nETN.new(Sign:boolean|number,Layer:number,Value:number,Value2:number):ETN
 	if not Value2 then Value2=0 else
-		Value2=math.clamp(Value2,-Pinkie_Pie_Limit,Pinkie_Pie_Limit)
+		if Value2<=-Pinkie_Pie_Limit then
+			local carry=ceil(Value2/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
+			Value+=carry
+			Value2-=carry
+		end
+		if Value2>=Pinkie_Pie_Limit then
+			local carry=floor300(Value2)
+			Value+=carry
+			Value2-=carry
+		end
 	end
 	if type(Sign)=="number"then Sign=Sign>=0 end
 	if Layer<-2 or Layer>MAX_LAYER then Layer=0 end
@@ -1902,6 +1911,8 @@ local function mul2(Value:ETN):ETN
 end
 
 local function fastadd(a:ETN,b:ETN):ETN
+	-- NETN:  1;1;256;3e-308 + 0;0;6.666e+255;0
+	
 	if nETN.IsZero(a)then return b end
 	if nETN.IsZero(b)then return a end
 
@@ -1952,7 +1963,7 @@ local function fastadd(a:ETN,b:ETN):ETN
 			if rs2~=rs and COD then
 				pb=1-pb
 				pa-=1
-			elseif COD then
+			elseif not COD then
 				pb=0
 			end
 			return nETN.RawNew(rs,0,pa,pb)
@@ -2012,6 +2023,7 @@ local function fastadd(a:ETN,b:ETN):ETN
 	if alayer>blayer then 
 		a,b=b,a
 		alayer,blayer=blayer,alayer
+		asign,bsign=bsign,asign
 		av1,av2,bv1,bv2=bv1,bv2,av1,av2
 	end
 	if alayer==0 then
@@ -2072,10 +2084,7 @@ function nETN.sub(a:ValidInput,b:ValidInput):ETN
 	return fastadd(a,nETN.RawNew(not b.Sign,b.Layer,b.Val1,b.Val2))
 end
 
---Multiplies two ETNs together like a*b
---for L2 AND ABOVE USE nETN.div() taking the reciprocal of an L2 will yield 0, we plan to add L2+ tiny numbers in 2.XXX+ RR.
-function nETN.mul(a:ValidInput,b:ValidInput):ETN
-	a=nETN.convert(a)b=nETN.convert(b)
+local function fastmul(a:ETN,b:ETN):ETN
 	if nETN.IsZero(a)then return ZERO end
 	if nETN.IsZero(b)then return ZERO end
 
@@ -2123,6 +2132,7 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 			end
 			return nETN.RawNew(thesign,0,pa,pb)
 		elseif alayer==1 then
+			if bv1==-av1 and bv2==-av2 then return thesign and ONE or MinusONE end
 			local pa=av1+bv1
 			if pa>=MAX_ABSOLUTE_RANGE then
 				local loggedpa=log10(pa)
@@ -2140,7 +2150,7 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 				local powed=pow10(added)
 				return nETN.RawNew(thesign,0,0,powed)
 			end
-			
+
 			local thecheck,rainbowdashcheck=pb<0,(FLOAT_RAINBOWDASH_LIMIT>=pa and -FLOAT_RAINBOWDASH_LIMIT<pa)
 			if rainbowdashcheck and thecheck then
 				pa-=Pinkie_Pie_Limit
@@ -2168,7 +2178,7 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 			local factor=log10(1+pow10(difference))
 			local flooredfactor=floor300(factor)
 			local pa,pb=av1+flooredfactor,flooredfactor==factor and av2 or (factor-flooredfactor)+av2
-			
+
 			local thecheck,rainbowdashcheck=pb<0,(FLOAT_RAINBOWDASH_LIMIT>=pa and -FLOAT_RAINBOWDASH_LIMIT<pa)
 			if rainbowdashcheck and thecheck then
 				pa+=Pinkie_Pie_Limit
@@ -2193,9 +2203,9 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 		if blayer==1 then
 			-- A: 1;0;0;6.6666666666e-255
 			-- B: 1;1;256;52.25471555991675
-			
+
 			local logA=log10(av1+av2) --  -254.20
-			
+
 			-- -254.2+308.254 = 54.054
 			local bv=bv1+bv2
 			local LB=logA+bv
@@ -2235,11 +2245,11 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 				end
 				return nETN.RawNew(thesign,0,pa,pb)
 			end
-			
+
 			local ceilorfloor=logA<0 and ceil or floor
 			local floored=ceilorfloor(logA/Pinkie_Pie_Limit)*Pinkie_Pie_Limit
 			local pa,pb=bv1+floored,logA==floored and bv2 or (logA-floored)+bv2
-			
+
 			local thecheck,rainbowdashcheck=pb<0,(FLOAT_RAINBOWDASH_LIMIT>=pa and -FLOAT_RAINBOWDASH_LIMIT<pa)
 			local PZ if rainbowdashcheck then PZ=thecheck else PZ=pb<=-Pinkie_Pie_Limit end
 			if not thecheck and pb>=Pinkie_Pie_Limit then
@@ -2306,6 +2316,17 @@ function nETN.mul(a:ValidInput,b:ValidInput):ETN
 		-- add future L1*anything handler
 	end
 end
+--Multiplies two ETNs together like a*b
+function nETN.mul(a:ValidInput,b:ValidInput):ETN
+	a=nETN.convert(a)b=nETN.convert(b)
+	return fastmul(a,b)
+end
+
+--Divides two ETNs together like a/b
+function nETN.div(a:ValidInput,b:ValidInput):ETN
+	a=nETN.convert(a)b=nETN.convert(b)
+	return fastmul(a,recipfast(b))
+end
 
 function nETN.toStringFromNumber(number:number):string
 	return nETN.toString(nETN.fromNumber(number))
@@ -2313,17 +2334,10 @@ end
 
 --MAKESHIFT FUNCTIONS
 
---Divides two ETNs together like a/b
-function nETN.div(a:ValidInput,b:ValidInput):ETN
-	a=nETN.convert(a)b=nETN.convert(b)
-	return nETN.mul(a,recipfast(b))
-end
-
 function gbiscientificize(mantissa)
 	local roundedmantissa = math.round(mantissa*1000)
 	return string.sub(tostring(roundedmantissa),1,1).."."..string.sub(tostring(roundedmantissa),2,4)
 end
-
 
 local stuffs = {
 	{"","U","D","t","q","Q","s","S","o","n"},

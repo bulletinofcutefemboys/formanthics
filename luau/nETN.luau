@@ -46,7 +46,7 @@ So thank you viewer for using the nETN project... We will now provide Documentat
 
 Original Author by @xoIitl
 Maintained by The Bulletin of Cute Femboys
-VERSION v0.210
+VERSION v0.310
 
 ETN: A valid NewEternityNum Table
 EN: A valid EternityNum Table
@@ -73,10 +73,10 @@ FUNCTIONS:
 	
 	nETN.toNumber(ETN): number -> Converts a NewEternityNum Table to an number
 	nETN.toString(ETN): string -> Converts a NewEternityNum Table to a formatted string ("S;L;v1;v2")
-	nETN.toScientific(val): string -> Converts a value to an string ("XeY") [WIP]
-	nETN.toLayerNotation(val, digits): string -> Converts a value to an string ("E(x)y") [WIP]
-	nETN.toSuffix(val): string -> Converts a value to an suffix [WIP]
-	nETN.short(val, digits): string -> Converts a value to an displayable string [WIP]
+	nETN.toScientific(ETN,digits): string -> Converts a NewEternityNum Table to a formatted string ("XeY") with an optional max digit cutoff parameter
+	nETN.toLayerNotation(ETN,digits): string -> Converts a NewEternityNum Table to a formatted string ("E(x)y") with an optional max digit cutoff parameter
+	nETN.toSuffix(ETN): string -> Converts a NewEternityNum Table to a suffix string of 3 digits to the right
+	nETN.short(ETN,digits): string -> Converts a NewEternityNum Table to a suffix string with an optional max digit cutoff parameter
 
 --// BOOLEAN
 	nETN.eq(val1, val2): bool -> returns if val1 equals val2 (==)
@@ -85,7 +85,7 @@ FUNCTIONS:
 	nETN.leeq(val1, val2): bool -> returns if val1 is less or equal then val2 (<=)
 	nETN.meeq(val1, val2): bool -> returns if val1 is more or equal then val2 (>=)
 	nETN.between(val,min,max): bool -> returns if val is between min and max (exclusive)
-	nETN.nETN.betweenInclusive(val,min,max): bool -> returns if val is between min and max (inclusive)
+	nETN.betweenInclusive(val,min,max): bool -> returns if val is between min and max (inclusive)
 
 --// S CALCS [WIP]
 	nETN.abs(val): ETN -> returns the absolute value of val
@@ -286,7 +286,7 @@ function nETN.new(Sign:boolean|number,Layer:number,Value:number,Value2:number):E
 			end
 		end
 		if Value==INFINITY then return Sign and Inf or MinusInf end
-		
+
 		if NUMBERRANGE(Value+Value2)then
 			local logvalue=log10(Value+Value2)
 			local flooredLog=floor300(logvalue)
@@ -339,7 +339,7 @@ function nETN.new(Sign:boolean|number,Layer:number,Value:number,Value2:number):E
 		end
 		if Value<MAX_ABSOLUTE_RANGE then
 			local floored=floor300(Value)
-			
+
 			local pb=(Value-floored)
 			local rainbowdashcheck=(FLOAT_RAINBOWDASH_LIMIT>=floored and -FLOAT_RAINBOWDASH_LIMIT<floored)
 			if pb>=Pinkie_Pie_Limit or (rainbowdashcheck and pb<0) then 
@@ -351,10 +351,10 @@ function nETN.new(Sign:boolean|number,Layer:number,Value:number,Value2:number):E
 				floored+=carry
 				pb-=carry
 			end
-			
+
 			return nETN.RawNew(Sign,1,floored,pb)
 		end 
-		
+
 		local floored=floor300(val20)
 		local pb=floored==val20 and val21 or (val20-floored)+val21
 		local added=val20+val21
@@ -458,7 +458,7 @@ function nETN.fromString(Value:string):ETN
 end
 
 --Converts a string (in the form of nETN's S;L;V1;V2 and special nETN values) to ETN
---WE DO NOT ANYTHING NOT nETN formatted use nETN.fromString() instead !!
+--Recommended to use nETN.fromString() instead !! (unless u know what you're doing)
 --Do not pass malformed strings here
 function nETN.fromDefaultStringFormat(Value:string):ETN
 	if Value=="NaN" or Value=="nan" then return NaN end
@@ -529,6 +529,11 @@ function nETN.toStringDefensive(Value:ETN):string
 	return Sign..";"..Layer..";"..Val1..";"..Val2
 end
 
+--Converts a number to a string (in the form of nETN's S;L;V1;V2)
+function nETN.toStringFromNumber(number:number):string
+	return nETN.toString(nETN.fromNumber(number))
+end
+
 --Converts an ETN to a Luau number (IEEE 754)
 function nETN.toNumber(Value:ETN):number
 	local Layer,val1,Sign,val2=Value.Layer,Value.Val1,Value.Sign,Value.Val2
@@ -545,6 +550,55 @@ function nETN.toNumber(Value:ETN):number
 	elseif Layer==-2 then
 		return signMul*INFINITY
 	else return nan end
+end
+
+local function gbiscientificize(mantissa,precision)
+	local roundedmantissa = math.round(mantissa*10^precision)
+	return string.sub(tostring(roundedmantissa),1,1).."."..string.sub(tostring(roundedmantissa),2,precision)
+end
+local function cutoff(mantissa,precision)
+	local L=10^precision
+	return tostring(math.round(mantissa*L)/L)
+end
+
+local positive,negative={1,"+",""},{-1,"-","-"}
+function specialtoScientific(addedr:number,digits:number,Layer:number,Sign:boolean):string
+	local SignList=Sign and positive or negative
+	local loggedvalue=math.floor(log10(addedr))
+	if loggedvalue<3 and -loggedvalue<digits then
+		return SignList[3]..cutoff(addedr,digits)
+	end
+	local Mantissa=(addedr)/(10^loggedvalue)
+	local processed=gbiscientificize(Mantissa,digits+1)
+	if loggedvalue==0 then return SignList[3]..processed end
+	return SignList[3]..processed.."e"..loggedvalue
+end
+--Converts an ETN with an optional digit parameter to a string scientific notation.
+function nETN.toScientific(Value:ETN,digits:number?):string
+	if nETN.IsZero(Value) then return "0" end 
+	local Layer=Value.Layer
+	if Layer==-1 then return "NaN" end
+	if Layer==-2 or Layer>2 then return Value.Sign and "Inf" or "-Inf" end
+	if digits then digits=math.clamp(digits,2,16)else digits=3 end
+	
+	local SignList=Value.Sign and positive or negative
+	if Layer==0 then
+		local loggedvalue=math.floor(log10(Value.Val1+Value.Val2))
+		local Mantissa=(Value.Val1+Value.Val2)/(10^loggedvalue)
+		local processed=gbiscientificize(Mantissa,digits+1)
+		if loggedvalue==0 then return SignList[3]..processed end
+		return SignList[3]..processed.."e"..loggedvalue
+	elseif Layer==1 then
+		local loggedvalue=math.floor(Value.Val1+Value.Val2)
+		local Mantissa=10^(Value.Val2-math.floor(Value.Val2))
+		local processed=gbiscientificize(Mantissa,digits+1)
+		return SignList[3]..processed.."e"..loggedvalue
+	elseif Layer==2 then
+		local Lloggedvalue=math.floor(Value.Val1+Value.Val2)
+		local LMantissa=10^(Value.Val2-math.floor(Value.Val2))
+		local processed=gbiscientificize(LMantissa,digits+1)
+		return SignList[3].."1e"..processed.."e"..Lloggedvalue
+	end
 end
 
 --Converts any valid input to an ETN
@@ -648,18 +702,18 @@ function nETN.meeq(a:ValidInput,b:ValidInput):boolean
 	return nETN.cmp(nETN.convert(a),nETN.convert(b))~=-1
 end
 
--- Returns a bool whether v is between (x,y) exclusive
-function nETN.between(v:ValidInput,x:ValidInput,y:ValidInput):boolean
-	v,x,y=nETN.convert(v),nETN.convert(x),nETN.convert(y)
-	local cmp=nETN.cmp(v,x)if cmp~=1 then return false end
-	cmp=nETN.cmp(v,y)return cmp==-1
+--Returns a bool whether v is between (a,b) exclusive
+function nETN.between(v:ValidInput,a:ValidInput,b:ValidInput):boolean
+	v,a,b=nETN.convert(v),nETN.convert(a),nETN.convert(b)
+	local cmp=nETN.cmp(v,a)if cmp~=1 then return false end
+	cmp=nETN.cmp(v,b)return cmp==-1
 end
 
--- Returns a bool whether v is between [x,y] inclusive
-function nETN.betweenInclusive(v:ValidInput,x:ValidInput,y:ValidInput):boolean
-	v,x,y=nETN.convert(v),nETN.convert(x),nETN.convert(y)
-	local cmp=nETN.cmp(v,x)if cmp==-1 then return false end
-	cmp=nETN.cmp(v,y)return cmp~=1
+--Returns a bool whether v is between [a,b] inclusive
+function nETN.betweenInclusive(v:ValidInput,a:ValidInput,b:ValidInput):boolean
+	v,a,b=nETN.convert(v),nETN.convert(a),nETN.convert(b)
+	local cmp=nETN.cmp(v,a)if cmp==-1 then return false end
+	cmp=nETN.cmp(v,b)return cmp~=1
 end
 
 --Returns the Absolute Value of an ETN
@@ -731,6 +785,112 @@ end
 --Returns the reciprocal of an ETN
 function nETN.recip(Value:ValidInput):ETN
 	Value=nETN.convert(Value)return recipfast(Value)
+end
+
+local letters = {"","k","M","B","T","q","Q","s","S","o","n","d","Ud","Dd","td","qd","Qd",
+	"sd","Sd","od","nd","Vg","UV","DV","tV","qV","QV","sV","SV","oV","nV","Tg","UT","DT","tT","qT","QT","sT","ST",
+	"oT","nT","qg","Uq","Dq","tq","qq","Qq","sq","Sq","oq","nq","Qg","UQ","DQ","tQ","qQ","QQ","sQ","SQ","oQ","nQ","sg",
+	"Us","Ds","ts","qs","Qs","ss","Ss","os","ns","Sg","US","DS","tS","qS","QS","sS","SS","oS","nS","Og","UO","DO",
+	"tO","qO","QO","sO","SO","oO","nO","Ng","UN","DN","tN","qN","QN","sN","SN","oN","nN","Cen","UCe","DCe"
+}
+local stuffs = {
+	{"","U","D","t","q","Q","s","S","o","n"},
+	{"","d","V","T","qg","Qg","sg","Sg","O","N"},
+	{"","Ce","Dc","tc","qG","QG","sc","Sc","OG","NG"},
+	special = {"Cen","DuC","TrC","qGe","QGe","sCe","SCe","OGe","NGe"},
+}
+
+local function subsuffixiacation(number:number,p):string
+	local processednumber,newprocessednumber=tostring(number),nil
+	local l=string.len(processednumber)
+	local o,m,q=math.floor((l-1)/3),4,nil
+	if l<m then m=l end
+
+	if string.find(processednumber,"e+") then
+		local magnitude:number=tonumber(string.sub(processednumber,string.find(processednumber,"e+")+2))
+		local sigfigs:number=tonumber(string.sub(processednumber,1,string.find(processednumber,"e+")-1))
+		local dot=math.fmod(magnitude,3)+1
+		sigfigs=tostring(math.round(sigfigs*1000))
+		processednumber=string.sub(sigfigs,1,dot).."."..string.sub(sigfigs,dot+1,4)
+		if letters[math.floor(magnitude/3)+1]then
+			processednumber=processednumber..letters[math.floor(magnitude/3)+1]
+		else
+			processednumber=string.sub(sigfigs,1,1).."."..string.sub(sigfigs,2,4).."e+"..tostring(magnitude)
+		end
+		return p..processednumber
+	end
+
+	processednumber=string.sub(processednumber,1,m)
+	if m==4 then
+		newprocessednumber=string.sub(processednumber,1,l-3*o).."."..string.sub(processednumber,l-3*o+1,4)
+	else newprocessednumber=processednumber end
+	if letters[o+1] then
+		newprocessednumber=newprocessednumber..letters[o+1]
+	else newprocessednumber=tostring(number)end
+	return p..newprocessednumber
+end
+local function subsuffixication2(Value,digits)
+	local annyeong=Value.Val1+Value.Val2
+	local magnitude=math.floor(annyeong)
+	local sigfigs=10^(annyeong-magnitude)
+	local dot=math.fmod(magnitude,3)+1 sigfigs = tostring(math.round(sigfigs*1000))
+	local processednumber=string.sub(sigfigs,1,dot).."."..string.sub(sigfigs,dot+1,4)
+
+	if 3006>magnitude and magnitude>=303 then
+		if magnitude>=3003 then return processednumber.."MilN" end local L=math.floor(magnitude/3)-1
+		if L/100==math.round(L/100) then return processednumber..stuffs["special"][math.round(L/100)] end
+		local P,cn = string.split(tostring(L),""),{} for i,d in ipairs(P)do
+			table.insert(cn,stuffs[4-i][tonumber(d)+1])
+		end
+		if not string.find(tostring(L),"0")then
+			for i,_ in ipairs(cn) do cn[i]=string.sub(cn[i],1,1) end
+		end
+		return processednumber..cn[3]..cn[2]..cn[1]
+	else return nETN.toScientific(Value,digits)end
+end
+
+local function fastsuffixication(Value:ETN,digits:number):string
+	local p=Value.Sign and "" or "-" 
+	local layer=Value.Layer
+	if layer==0 then
+		local number=Value.Val1+Value.Val2
+
+		if number<1e-6 then
+			number=math.round(1/number)
+			return p.."1/"..subsuffixiacation(number,"")
+		end
+		if number<0.01 then
+			return p..tostring(math.round(number*1e6)/1e6)
+		end
+		if number<1000 then
+			return p..tostring(math.round(number*100)/100)
+		else number=math.round(number)end
+
+		return subsuffixiacation(number,p)
+	elseif layer==1 then
+		local VV=Value.Val1+Value.Val2
+		if Value.Val1<0 then
+			if VV<303 then return p.."1/"..subsuffixiacation(10^-VV,"")end
+			local reciped=recipfast(Value)
+			if not reciped.Sign then
+				reciped=nETN.RawNew(true,reciped.Layer,reciped.Val1,reciped.Val2)
+			end
+			return p.."1/"..subsuffixication2(reciped,digits)
+		end
+		if VV<303 then return subsuffixiacation(10^VV,p)end
+		return subsuffixication2(Value,digits)
+	else return nETN.toScientific(Value,digits)end
+end
+
+--Converts an ETN with an optional digit parameter to a suffixed string. [Legacy] (Same as nETN.short(x,3))
+function nETN.toSuffix(Value:ETN):string
+	return fastsuffixication(Value,3)
+end
+
+--Converts an ETN with an optional digit parameter to a suffixed string. [New] (Same as nETN.toSuffix(x) when no parameter is passed)
+function nETN.short(Value:ETN,digits:number?):string
+	digits=digits or 3
+	return fastsuffixication(Value,digits)
 end
 
 local LL10_E=log10(LOG10_E)
@@ -950,7 +1110,7 @@ function nETN.pow10(Value:ValidInput):ETN
 				end
 				return nETN.RawNew(true,1,val1,val2)
 			end
-			
+
 			if not sign then val1=-val1
 				if val2>=MXRCURY_TVANIUS_NUMBER then
 					val2=Pinkie_Pie_Limit-val2
@@ -1448,7 +1608,7 @@ function nETN.sqrt(Value:ValidInput):ETN
 	local b=result-a
 	return nETN.RawNew(true,0,a,b)
 end
---val1<=FLOAT_RAINBOWDASH_LIMIT and val1>-FLOAT_RAINBOWDASH_LIMIT
+
 --Returns the cbrt(x) of an ETN
 function nETN.cbrt(Value:ValidInput):ETN
 	Value=nETN.convert(Value)
@@ -1739,7 +1899,7 @@ local function teleiopartC_L1(Value:ETN,L1:number):ETN
 
 		local floored=floor300(val1)
 		val2+=val1-floored val1=floored
-		
+
 		if val2>=Pinkie_Pie_Limit or (val2<0 and FLOAT_RAINBOWDASH_LIMIT>=val1)then
 			local carry=floor300(val2)
 			val2-=carry val1+=carry
@@ -1906,13 +2066,13 @@ local function mul2(Value:ETN):ETN
 		v1+=1
 		v2-=1
 	end
-	
+
 	return nETN.RawNew(sign,0,v1,v2)
 end
 
 local function fastadd(a:ETN,b:ETN):ETN
 	-- NETN:  1;1;256;3e-308 + 0;0;6.666e+255;0
-	
+
 	if nETN.IsZero(a)then return b end
 	if nETN.IsZero(b)then return a end
 
@@ -1980,7 +2140,7 @@ local function fastadd(a:ETN,b:ETN):ETN
 			else
 				if difference<DRACULAURAS_NUMBER then return a end
 			end
-			
+
 			local M,bob=thesign and 1 or -1,nil
 			if difference<CLAWDEENS_NUMBER and difference>CLEO_DENILES_NUMBER then
 				bob=thesign and 2 or -LN10*difference
@@ -1989,9 +2149,9 @@ local function fastadd(a:ETN,b:ETN):ETN
 			if not bobsign and not thesign then bob=-bob end
 			local logterm=log10(bob)
 			local flooredlog=floor300(logterm)
-			
+
 			local pa,pb=av1+flooredlog,flooredlog==logterm and av2 or (logterm-flooredlog)+av2
-			
+
 			local added=pa+pb
 			if thesign then
 				if added<0 and added>-DigitLimit then
@@ -2328,59 +2488,27 @@ function nETN.div(a:ValidInput,b:ValidInput):ETN
 	return fastmul(a,recipfast(b))
 end
 
-function nETN.toStringFromNumber(number:number):string
-	return nETN.toString(nETN.fromNumber(number))
+-- Converts an ETN with an optional digit parameter to string layer notation.
+function nETN.toLayerNotation(Value:ETN,digits:number?):string
+	if nETN.IsZero(Value) then return "E(0)0" end
+	local Layer=Value.Layer
+	if Layer==-1 then return "NaN" end
+	if Layer==-2 or Layer>2 then return Value.Sign and "Inf" or "-Inf" end
+	if digits then digits=math.clamp(digits,2,16)else digits=3 end
+
+	local Sign=Value.Sign and "-" or ""
+	local Added=Value.Val2+Value.Val1
+	local asign=true
+	if Layer>=1 then
+		asign=(Added)>0
+	end
+	local acrux=asign and "" or "-"
+	local V=specialtoScientific(Added,digits,0,true)
+
+	return Sign.."E("..acrux..Value.Layer..") "..V
 end
 
 --MAKESHIFT FUNCTIONS
-
-function gbiscientificize(mantissa)
-	local roundedmantissa = math.round(mantissa*1000)
-	return string.sub(tostring(roundedmantissa),1,1).."."..string.sub(tostring(roundedmantissa),2,4)
-end
-
-local stuffs = {
-	{"","U","D","t","q","Q","s","S","o","n"},
-	{"","d","V","T","qg","Qg","sg","Sg","O","N"},
-	{"","Ce","Dc","tc","qG","QG","sc","Sc","OG","NG"},
-	special = {"Cen","DuC","TrC","qGe","QGe","sCe","SCe","OGe","NGe"},
-}
-
-function nETN.toScientific(Value: ETN, ActualScientific:boolean?) : string
-	if type(ActualScientific)=="nil"then ActualScientific=false end
-	if Value.Layer > 2 then return "Inf" end
-	if Value.Layer == 2 then return "Inf" end
-	if nETN.IsZero(Value) then return "0e0" end 
-	if not Value.Sign then return "Negative" end
-	
-	local Sign= Value.Sign and 1 or -1
-	if Value.Layer == 0 then
-		local loggedvalue=log10(Value.Val1+Value.Val2)
-		local Mantissa = (Value.Val1+Value.Val2) / (10^ math.floor(loggedvalue) * Sign)
-		return gbiscientificize(Mantissa) .. "e+" .. math.floor(loggedvalue)
-	elseif Value.Layer == 1 then
-		local sigfigs,magnitude = (10^Value.Val2) * Sign,Value.Val1
-		local dot = math.fmod(magnitude,3)+1 sigfigs = tostring(math.round(sigfigs*1000))
-		local processednumber = string.sub(sigfigs,1,dot).."."..string.sub(sigfigs,dot+1,4)
-
-		if 3006 > magnitude and magnitude >= 303 and (not ActualScientific) then
-			if magnitude >= 3003 then return processednumber.."MilN" end local L = math.floor(magnitude/3)-1
-			if L/100 == math.round(L/100) then return processednumber..stuffs["special"][math.round(L/100)] end
-			local P,cn = string.split(tostring(L),""),{} for i,d in ipairs(P) do
-				table.insert(cn,stuffs[4-i][tonumber(d)+1])
-			end if not string.find(tostring(L),"0") then
-				for i,_ in ipairs(cn) do cn[i] = string.sub(cn[i],1,1) end
-			end
-			return processednumber..cn[3]..cn[2]..cn[1]
-		else
-			return string.sub(sigfigs,1,1).."."..string.sub(sigfigs,2,4).."e+"..tostring(magnitude)
-		end
-	end
-
-	local Exp = 10 ^ Value.Val1
-	local Mantissa = (10  ^ Value.Val2)* Sign
-	return gbiscientificize(Mantissa) .. "e+" .. math.floor(Exp)
-end
 
 function nETN.roundify(Value,precision)
 	if nETN.IsInf(Value) then return Inf end

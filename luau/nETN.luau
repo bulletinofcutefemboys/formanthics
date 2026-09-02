@@ -46,7 +46,7 @@ So thank you viewer for using the nETN project... We will now provide Documentat
 
 Original Author by @xoIitl
 Maintained by The Bulletin of Cute Femboys
-VERSION v0.310
+VERSION v0.320
 
 ETN: A valid NewEternityNum Table
 EN: A valid EternityNum Table
@@ -578,7 +578,7 @@ function nETN.toScientific(Value:ETN,digits:number?):string
 	if nETN.IsZero(Value) then return "0" end 
 	local Layer=Value.Layer
 	if Layer==-1 then return "NaN" end
-	if Layer==-2 or Layer>2 then return Value.Sign and "Inf" or "-Inf" end
+	if Layer==-2 or Layer>2 then return Value.Sign and "Infinity" or "-Infinity" end
 	if digits then digits=math.clamp(digits,2,16)else digits=3 end
 	
 	local SignList=Value.Sign and positive or negative
@@ -850,6 +850,7 @@ local function subsuffixication2(Value,digits)
 end
 
 local function fastsuffixication(Value:ETN,digits:number):string
+	if nETN.IsZero(Value) then return "0" end 
 	local p=Value.Sign and "" or "-" 
 	local layer=Value.Layer
 	if layer==0 then
@@ -870,7 +871,7 @@ local function fastsuffixication(Value:ETN,digits:number):string
 	elseif layer==1 then
 		local VV=Value.Val1+Value.Val2
 		if Value.Val1<0 then
-			if VV<303 then return p.."1/"..subsuffixiacation(10^-VV,"")end
+			if -VV<303 then return p.."1/"..subsuffixiacation(10^-VV,"")end
 			local reciped=recipfast(Value)
 			if not reciped.Sign then
 				reciped=nETN.RawNew(true,reciped.Layer,reciped.Val1,reciped.Val2)

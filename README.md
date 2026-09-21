@@ -135,7 +135,7 @@ print("And yes.. this was made by a femboy who isnt a furry (yea ik thats rare e
 print("And it was made possible from viewers like u :D","Anyone can contribute and use this in there projects (but you have to make your forked version public and open source or i will issue DMCAs [If you Mod one in your game and you dont publish that modded version that is a DMCA, But you do not have to make your game open sourced (its just the library your using has to. Understand?)])")
 ```
 
-# nETN (New Eternity Num) [v0.100\]
+# nETN (New Eternity Num) [v0.320\]
 ```lua
 -- This Source Code Form is subject to the terms of the Mozilla Public
 -- License, v. 2.0. If a copy of the MPL was not distributed with this

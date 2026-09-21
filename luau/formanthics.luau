@@ -10,7 +10,7 @@ local formanthics,pi:number,e:number = {},math.pi,math.exp(1)
 --local nETN = require(rs.DataModules:WaitForChild("nETN"))
 --[[ ★☆ ★☆ ★☆ ★☆ ★☆ ★☆
 Formanthics Math Module, made possible by viewers like you XD
-Powered By NewEternityNum by xoIitl @ The Bulletin of Cute Femboys (A Formanthics NATIVE fork will be released soon :3)
+Powered By NewEternityNum by xoIitl @ The Bulletin of Cute Femboys
 Original Author of Formanthics: xoIitl
 License: MPL v2.0 :D
 

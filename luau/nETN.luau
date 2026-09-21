@@ -37,9 +37,9 @@ So @xoIitl introduces...
 	• 100% Open Source and Free 4EVER X3
 	• Used in high scale commerical roblox games.
 	• Made possible and maintained from viewers like you (pbs kids)
-	• Automatically Compatible with Mathantics (another BCF maintained project)
-	• nETN is apart of the Mathantics Ecosystem as well as
-	Mathantics (nETN supported), Mathantics (NATIVE and no nETN dependency)
+	• Automatically Compatible with Formanthics (another BCF maintained project)
+	• nETN is apart of the Formanthics Ecosystem as well as
+	Formanthics (nETN supported), Formanthics (NATIVE and no nETN dependency)
 	and nETN itself (which you are viewing RN)
 	
 So thank you viewer for using the nETN project... We will now provide Documentation embedded within each function x3

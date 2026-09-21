@@ -11,7 +11,7 @@ Here are the descriptions of both libraries:
 
 --[[ ★☆ ★☆ ★☆ ★☆ ★☆ ★☆
 Formanthics Math Module, made possible by viewers like you XD
-Powered By EternityNum by @FoundForces (A Formanthics NATIVE fork will be released soon :3)
+Powered By EternityNum by @FoundForces
 Original Author: xoIitl
 License: MPL v2.0 :D
 

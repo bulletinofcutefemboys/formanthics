@@ -190,9 +190,12 @@ VERSION v0.320
 
 # MORE INFO
 A C++ port will eventually start once both dependencies are in v1.008 RR (release)
-But for now as of June 20, 2026 They will be in Luau (roblox) modules.
+But for now as of Sept 21, 2026 They will be in Luau (roblox) modules.
+
+Formanthics (with nETN as a dependency) - ✅
+Formanthics NATIVE (no dependencys) - ✅
+nETN - In Beta (completed but in Beta)
 
 The Roadmap for the Formanthics repo:
-Formanthics (with nETN as a dependency) - ✅
-Formanthics NATIVE (no dependencys) - WIP
-nETN - WIP
+nETN will finally have a v1.008 RR version by December 2026.
+C++ version may begin construction soon. (binary + source) [Around Early 2027]

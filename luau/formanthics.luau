@@ -16,7 +16,7 @@ License: MPL v2.0 :D
 
 notes:
 this math module may not be 100% Optimized but it is fast enough for commercial roblox game usage.
-Version - v1.009
+Version - v1.010
 ]]
 
 local function len(t:{[any]:any}):(number)local n=0 for _ in pairs(t)do n+=1 end return n end
@@ -334,7 +334,7 @@ function formanthics.computeEu(n:number,returnB:boolean):({ETN}?)
 		table.insert(qnumbers,ETNOne)
 		Ld+=1 QNumbers[Ld]=qnumbers
 	end
-	return QNumbers[n]
+	return returnB and QNumbers[n] or nil
 end formanthics.computeEu(QMAX,false)
 
 --Returns the Binomial Coefficient "a choose b", normal=true on default. if normal=false then it returns an ETN value.

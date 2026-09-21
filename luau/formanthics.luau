@@ -354,7 +354,8 @@ function formanthics.computeB(n:number,returnB:boolean):(ETN?)
 			ETN.mul(formanthics.Binomial(n+1,k,false),formanthics.computeB(k,true))
 		)
 	end
-	accumulated=ETN.div(accumulated,n+1)accumulated.Sign=not accumulated.Sign B[n+1]=accumulated return accumulated
+	accumulated=ETN.div(accumulated,n+1)accumulated.Sign=not accumulated.Sign B[n+1]=accumulated
+	return returnB and accumulated or nil
 end formanthics.computeB(BMAX,false)
 
 --Returns the nth Bernoulli Number, normal=true on default. if normal=false then it returns an ETN value.

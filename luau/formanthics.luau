@@ -441,10 +441,6 @@ function formanthics.Integrate(Fx:(FlexNum)->(FlexNum),a:number,b:number,isetn:b
 	end return sum
 end
 
-local function parseetn(etn:ETN)
-	local mantissa=etn.Layer==1 and tostring(math.pow(10,etn.Exp-math.floor(etn.Exp)))or tostring(etn.Exp/math.pow(10,math.log10(etn.Exp)))
-	return (etn.Sign==-1 and "-"or"+")..mantissa.." E "..(etn.Layer==1 and math.floor(etn.Exp)or math.floor(math.log10(etn.Exp)))
-end
 --[THIS IS A MORE ACCURATE VERSION of formanthics.Integrate but is slower (one/two calls wont affect speed its still super fast)] Given a function F(x), and limits of integration a to b plus optional parameters like isetn (If your function uses ETN then mark it as true otherwise false) and n (the higher the n the more accurate but then the function will take slightly longer ;-;, for balance n is set to 5), tol is the tolerance value of accurary of the approximation (default set to 1e-8), max_depth is how much iterations the stack should do before it stops (prevents lag + default is 50). Returns the area F(x) with its left and right bounds being x=a,x=b and the x-axis (if F(x) returns negative values then the area subtracts). <Accepts ETN>
 function formanthics.Integrate2(Fx:(FlexNum)->(FlexNum),a:number,b:number,isetn:boolean?,n:number?,tol:number?,max_depth:number?):(FlexNum)
 	n=n or 10 tol=tol or 1e-8 max_depth=max_depth or 20 if type(isetn)~="boolean"then isetn=false end

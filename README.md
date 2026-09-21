@@ -182,7 +182,7 @@ So thank you viewer for using the nETN project... We will now provide Documentat
 
 Original Author by @xoIitl
 Maintained by The Bulletin of Cute Femboys
-VERSION v0.100
+VERSION v0.320
 ]]
 ```
 

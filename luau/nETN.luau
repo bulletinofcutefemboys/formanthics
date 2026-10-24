@@ -2497,7 +2497,7 @@ function nETN.toLayerNotation(Value:ETN,digits:number?):string
 	if Layer==-2 or Layer>2 then return Value.Sign and "Inf" or "-Inf" end
 	if digits then digits=math.clamp(digits,2,16)else digits=3 end
 
-	local Sign=Value.Sign and "-" or ""
+	local Sign=Value.Sign and "" or "-"
 	local Added=Value.Val2+Value.Val1
 	local asign=true
 	if Layer>=1 then

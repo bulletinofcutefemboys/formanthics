@@ -46,7 +46,7 @@ So thank you viewer for using the nETN project... We will now provide Documentat
 
 Original Author by @xoIitl
 Maintained by The Bulletin of Cute Femboys
-VERSION v0.320
+VERSION v0.321
 
 ETN: A valid NewEternityNum Table
 EN: A valid EternityNum Table

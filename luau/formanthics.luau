@@ -16,7 +16,7 @@ License: MPL v2.0 :D
 
 notes:
 this math module may not be 100% Optimized but it is fast enough for commercial roblox game usage.
-Version - v1.010
+Version - v1.011
 ]]
 
 local function len(t:{[any]:any}):(number)local n=0 for _ in pairs(t)do n+=1 end return n end
@@ -32,6 +32,27 @@ export type FlexNum=number|ETN
 function formanthics.randomize(k:number):(number)
 	local x:number = math.random()
 	return x/(k-k*x+x),x
+end
+
+local Fuyian_Number=5.421010862427522e-20
+local MIN_LUA_FLOAT=2.2250738585072014e-308
+--improved math.random with deep precision up to 2^(-64*precision)
+--Normal parameter for if you want ETN or a IEEE 754 float returned
+function formanthics.random(precision:number?,normal:boolean?):(FlexNum)
+	if type(normal)~="boolean"then normal=true end
+	local SHIFT,X,LIMIT=0,0,precision or 1000
+	repeat
+		X=math.random()
+		if X==0 then SHIFT+=1 end
+	until (X~=0 or SHIFT>=LIMIT)
+	if X==0 then return normal and 0 or ETN.new(1,0,0)end
+	if normal then
+		local RR=X*Fuyian_Number^SHIFT
+		if RR<MIN_LUA_FLOAT then return 0 end
+		return RR
+	else
+		return ETN.mul(ETN.fromNumber(X),ETN.pow(Fuyian_Number,SHIFT))
+	end
 end
 
 --improved math.random with luck k and range from 0 to n.

@@ -10,12 +10,12 @@ formanthics Native Math Module, made possible by viewers like you XD
 Native version without New Eternity Num by xoIitl @ The Bulletin of Cute Femboys
 Original Author of formanthics: xoIitl
 Original Author of formanthics Native: xoIitl
-Date: 2026-09-21
+Date: 2026-10-25
 License: MPL v2.0 :D
 
 notes:
 this math module may not be 100% Optimized but it is fast enough for commercial roblox game usage.
-Version - v1.010n
+Version - v1.011n
 ]]
 
 local function len(t:{[any]:any}):(number)local n=0 for _ in pairs(t)do n+=1 end return n end
@@ -23,6 +23,22 @@ local function rounding(v:number,precision:number,stringed:boolean?):(string|num
 	stringed=stringed or true
 	local j = math.pow(10,precision)local finale=math.round(j*v)/j
 	return stringed and tostring(finale) or finale
+end
+
+local Fuyian_Number=5.421010862427522e-20
+local MIN_LUA_FLOAT=2.2250738585072014e-308
+--improved math.random with deep precision up to 2^(-64*precision)
+--Normal parameter for if you want ETN or a IEEE 754 float returned
+function formanthics.random(precision:number?):(number)
+	local SHIFT,X,LIMIT=0,0,precision or 15
+	repeat
+		X=math.random()
+		if X==0 then SHIFT+=1 end
+	until (X~=0 or SHIFT>=LIMIT)
+	if X==0 then return 0 end
+	local RR=X*Fuyian_Number^SHIFT
+	if RR<MIN_LUA_FLOAT then return 0 end
+	return RR
 end
 
 --improved math.random with luck k.

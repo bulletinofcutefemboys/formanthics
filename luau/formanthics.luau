@@ -69,7 +69,13 @@ end
 --Returns the warped probability in a set of that item based on its luck k, beginning rarity s (sum up all raw chances up to the nth item in the set), and its raw chance (op).
 function formanthics.luckprobability(k:number,s:number,op:number):(number)
 	local sop = s+op
-	return sop/(k*(1-sop)+sop)-s/(k*(1-s)+s)
+	local p=sop/(k*(1-sop)+sop)-s/(k*(1-s)+s)
+	if p==0 and s==1 then
+		local ok=op*k
+		local D=1+op-ok
+		p=ok/D
+	end
+	return p
 end
 
 --[★☆ OLD ★☆]
